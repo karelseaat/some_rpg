@@ -1,0 +1,294 @@
+[world]
+name = "Realm of SomeRPG"
+start_location = "tavern"
+
+[[locations]]
+id = "tavern"
+name = "The Rusty Ale Tavern"
+description = "A warm and welcoming tavern with a roaring fireplace. The smell of ale and hearty food fills the air."
+type = "inn"
+exits = { north = "forest", east = "market" }
+npcs = ["bartender"]
+encounters = []
+
+[[locations]]
+id = "forest"
+name = "Whispering Woods"
+description = "Ancient trees tower above you. The path is overgrown with vines and strange sounds echo through the darkness."
+type = "wilderness"
+exits = { south = "tavern", east = "mountain_path", west = "cave" }
+npcs = []
+encounters = ["goblin_scout", "wolf_pack"]
+dangers = ["lost_in_forest", "bandits"]
+
+[[locations]]
+id = "cave"
+name = "Shadowed Cavern"
+description = "A deep cave with glowing crystals embedded in the walls. The air is cool and damp."
+type = "wilderness"
+exits = { east = "forest" }
+npcs = ["hermit"]
+encounters = ["giant_spider", "bat_swarm"]
+treasure = ["crystal_shard"]
+
+[[locations]]
+id = "mountain_path"
+name = "Mountain Pass"
+description = "A narrow, treacherous path winds up the mountainside. Cold wind whips around you."
+type = "wilderness"
+exits = { west = "forest", north = "summit", south = "village" }
+npcs = []
+encounters = ["mountain_goat", "fierce_wind"]
+dangers = ["avalanche", "falling_rocks"]
+
+[[locations]]
+id = "summit"
+name = "Mountain Summit"
+description = "You stand at the peak, overlooking the entire realm. The view is breathtaking."
+type = "landmark"
+exits = { south = "mountain_path" }
+npcs = ["sage"]
+encounters = []
+treasure = ["ancient_scroll"]
+
+[[locations]]
+id = "village"
+name = "Riverside Village"
+description = "A peaceful village nestled by a gentle river. Smoke rises from chimneys."
+type = "settlement"
+exits = { north = "mountain_path", south = "market", west = "camping_site" }
+npcs = ["mayor", "healer"]
+encounters = []
+
+[[locations]]
+id = "market"
+name = "Trade Market"
+description = "A bustling marketplace filled with merchants, goods, and the chatter of traders."
+type = "settlement"
+exits = { west = "tavern", north = "village" }
+npcs = ["merchant"]
+encounters = []
+
+[[locations]]
+id = "camping_site"
+name = "Peaceful Campground"
+description = "A serene clearing with fire rings and sheltered spots for rest."
+type = "inn"
+exits = { east = "village" }
+npcs = []
+encounters = []
+
+# NPCs
+[[npcs]]
+id = "bartender"
+name = "Old Harv"
+description = "A gruff but kind bartender with scars of adventures past."
+dialogue = "Welcome, traveler! Care for a drink?"
+offers_quest = false
+
+[[npcs]]
+id = "merchant"
+name = "Theron the Trader"
+description = "A sharp-eyed merchant wearing fine clothes."
+dialogue = "Looking for supplies? I've got the best deals in the realm!"
+shop = true
+inventory = ["health_potion", "stamina_potion", "rations", "rope", "torch"]
+
+[[npcs]]
+id = "healer"
+name = "Sister Mara"
+description = "A wise healer with gentle hands."
+dialogue = "Your wounds need tending. I can help."
+shop = false
+offers_quest = true
+
+[[npcs]]
+id = "mayor"
+name = "Lord Edmund"
+description = "The dignified mayor of Riverside Village."
+dialogue = "What brings you to our humble village?"
+offers_quest = true
+
+[[npcs]]
+id = "sage"
+name = "The Mountain Sage"
+description = "An ancient being with eyes that shimmer like starlight."
+dialogue = "I have been waiting for a worthy traveler..."
+offers_quest = true
+
+[[npcs]]
+id = "hermit"
+name = "Old Crook"
+description = "A weathered hermit living in solitude."
+dialogue = "Few venture this deep. Seek ye treasure or death?"
+shop = false
+offers_quest = false
+
+# Items
+[[items]]
+id = "health_potion"
+name = "Health Potion"
+description = "A shimmering red liquid that restores vitality"
+type = "consumable"
+value = 50
+effect = "heal"
+amount = 30
+
+[[items]]
+id = "stamina_potion"
+name = "Stamina Potion"
+description = "A blue elixir that restores energy"
+type = "consumable"
+value = 40
+effect = "stamina"
+amount = 50
+
+[[items]]
+id = "rations"
+name = "Travel Rations"
+description = "Dried meat and bread for long journeys"
+type = "food"
+value = 20
+effect = "heal"
+amount = 15
+
+[[items]]
+id = "rope"
+name = "Sturdy Rope"
+description = "100 feet of strong rope"
+type = "tool"
+value = 30
+effect = "none"
+
+[[items]]
+id = "torch"
+name = "Oil Torch"
+description = "A torch dipped in whale oil, burns bright"
+type = "tool"
+value = 15
+effect = "light"
+
+[[items]]
+id = "crystal_shard"
+name = "Glowing Crystal Shard"
+description = "A fragment of an ancient magical crystal"
+type = "treasure"
+value = 200
+effect = "none"
+
+[[items]]
+id = "ancient_scroll"
+name = "Ancient Scroll"
+description = "A mysterious scroll with faded writing"
+type = "treasure"
+value = 250
+effect = "none"
+
+# Quests
+[[quests]]
+id = "mushroom_hunt"
+name = "The Mushroom Hunt"
+description = "Sister Mara needs rare glowing mushrooms from the cave for her healing potions"
+giver = "healer"
+location = "cave"
+objectives = ["Find 3 glowing mushrooms", "Return to Sister Mara"]
+reward = 100
+reward_item = "health_potion"
+
+[[quests]]
+id = "bandit_trouble"
+name = "Bandits in the Forest"
+description = "The mayor requests someone to deal with bandits terrorizing the trade routes"
+giver = "mayor"
+location = "forest"
+objectives = ["Discover bandit hideout", "Defeat bandit leader"]
+reward = 150
+reward_item = "none"
+
+[[quests]]
+id = "sage_wisdom"
+name = "The Sage's Test"
+description = "The mountain sage offers wisdom to those worthy enough to reach the summit"
+giver = "sage"
+location = "summit"
+objectives = ["Meditate on the summit", "Learn the ancient ways"]
+reward = 200
+reward_item = "ancient_scroll"
+
+# Encounters
+[[encounters]]
+id = "goblin_scout"
+name = "Goblin Scout"
+description = "A small goblin with a mischievous grin"
+type = "combat"
+difficulty = "easy"
+reward = 25
+
+[[encounters]]
+id = "wolf_pack"
+name = "Pack of Wolves"
+description = "Three hungry wolves with glowing eyes"
+type = "combat"
+difficulty = "medium"
+reward = 50
+
+[[encounters]]
+id = "giant_spider"
+name = "Giant Cave Spider"
+description = "An enormous spider with legs as thick as tree trunks"
+type = "combat"
+difficulty = "hard"
+reward = 100
+
+[[encounters]]
+id = "bat_swarm"
+name = "Swarm of Bats"
+description = "Hundreds of tiny bats fill the cavern"
+type = "combat"
+difficulty = "easy"
+reward = 15
+
+[[encounters]]
+id = "mountain_goat"
+name = "Mountain Goat"
+description = "A proud mountain goat blocks your path"
+type = "interaction"
+difficulty = "easy"
+reward = 10
+
+[[encounters]]
+id = "fierce_wind"
+name = "Fierce Mountain Wind"
+description = "A terrible wind threatens to blow you off the cliff"
+type = "obstacle"
+difficulty = "medium"
+reward = 0
+
+# Dangers
+[[dangers]]
+id = "lost_in_forest"
+name = "Lost in the Woods"
+description = "You've become disoriented and cannot find your way"
+damage = 5
+escape_difficulty = "medium"
+
+[[dangers]]
+id = "bandits"
+name = "Bandit Ambush"
+description = "Bandits leap from the bushes!"
+damage = 15
+escape_difficulty = "hard"
+
+[[dangers]]
+id = "avalanche"
+name = "Avalanche"
+description = "Snow and ice crash down the mountainside"
+damage = 40
+escape_difficulty = "hard"
+
+[[dangers]]
+id = "falling_rocks"
+name = "Falling Rocks"
+description = "Loose rocks tumble from above"
+damage = 20
+escape_difficulty = "medium"

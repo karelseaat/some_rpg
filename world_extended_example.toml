@@ -1,0 +1,109 @@
+# Extended world example - uncomment and add to world.toml to expand the game
+
+# Additional Locations
+
+# [[locations]]
+# id = "library"
+# name = "Grand Library"
+# description = "Towering shelves of ancient books and scrolls. The smell of aged parchment fills the air."
+# type = "settlement"
+# exits = { south = "market" }
+# npcs = ["librarian"]
+# encounters = []
+# dangers = []
+# treasure = ["ancient_tome"]
+
+# [[locations]]
+# id = "dungeon"
+# name = "Dark Dungeon"
+# description = "A dank dungeon filled with chains and the bones of forgotten creatures."
+# type = "wilderness"
+# exits = { up = "village" }
+# npcs = []
+# encounters = ["skeleton_warrior", "dungeon_boss"]
+# dangers = ["poison_gas", "spike_trap"]
+# treasure = ["gold_chest", "cursed_amulet"]
+
+# Additional NPCs
+
+# [[npcs]]
+# id = "librarian"
+# name = "Professor Aldrich"
+# description = "An elderly scholar with spectacles and ink-stained fingers"
+# dialogue = "Welcome to the library. Perhaps you seek knowledge?"
+# shop = false
+# offers_quest = true
+# inventory = []
+
+# Additional Items
+
+# [[items]]
+# id = "ancient_tome"
+# name = "Ancient Tome of Knowledge"
+# description = "A mysterious book filled with eldritch symbols"
+# type = "treasure"
+# value = 300
+# effect = "none"
+
+# [[items]]
+# id = "poison_antidote"
+# name = "Poison Antidote"
+# description = "A vial of purple liquid"
+# type = "consumable"
+# value = 75
+# effect = "cure"
+# amount = 1
+
+# [[items]]
+# id = "gold_chest"
+# name = "Golden Treasure Chest"
+# description = "Heavy chest filled with gold coins"
+# type = "treasure"
+# value = 500
+# effect = "none"
+
+# Additional Encounters
+
+# [[encounters]]
+# id = "skeleton_warrior"
+# name = "Skeleton Warrior"
+# description = "A skeletal figure wielding a rusted sword"
+# type = "combat"
+# difficulty = "hard"
+# reward = 150
+
+# [[encounters]]
+# id = "dungeon_boss"
+# name = "The Dread Lord"
+# description = "A massive shadowy figure radiating pure evil"
+# type = "combat"
+# difficulty = "hard"
+# reward = 300
+
+# Additional Dangers
+
+# [[dangers]]
+# id = "poison_gas"
+# name = "Poisonous Gas"
+# description = "Noxious fumes fill the chamber"
+# damage = 25
+# escape_difficulty = "hard"
+
+# [[dangers]]
+# id = "spike_trap"
+# name = "Spike Trap"
+# description = "Sharp spikes shoot up from the floor"
+# damage = 30
+# escape_difficulty = "medium"
+
+# Additional Quests
+
+# [[quests]]
+# id = "library_research"
+# name = "Forbidden Knowledge"
+# description = "Professor Aldrich wants you to find a rare manuscript hidden in the dungeon"
+# giver = "librarian"
+# location = "library"
+# objectives = ["Venture into the dungeon", "Find the Forbidden Codex", "Return safely to the library"]
+# reward = 250
+# reward_item = "ancient_tome"
