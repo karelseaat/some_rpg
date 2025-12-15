@@ -220,8 +220,17 @@ class GameEngine:
             return f"You couldn't escape the {danger.name} and took {danger.damage} damage!"
 
     def talk_to_npc(self, npc_id: str) -> str:
-        """Talk to an NPC."""
+        """Talk to an NPC by ID or name."""
         npc = self.world.get_npc(npc_id)
+        
+        # If not found by ID, try to find by name (case-insensitive)
+        if not npc:
+            npc_id_lower = npc_id.lower()
+            for npc_obj in self.world.npcs.values():
+                if npc_obj.name.lower() == npc_id_lower:
+                    npc = npc_obj
+                    break
+        
         if not npc:
             return "NPC not found"
         

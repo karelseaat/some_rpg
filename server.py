@@ -34,55 +34,16 @@ class TelnetPlayer:
         await self.writer.drain()
 
     async def read_line(self) -> Optional[str]:
-        """Read a line from the player with history support."""
+        """Read a line from the player."""
         try:
-            self.current_input = ""
-            self.history_index = -1
-            
-            while True:
-                data = await asyncio.wait_for(self.reader.read(1), timeout=300)
-                if not data:
-                    return None
-                
-                char = data.decode('utf-8', errors='ignore')
-                
-                # Handle escape sequences (arrow keys)
-                if char == '\x1b':
-                    next_char = await asyncio.wait_for(self.reader.read(1), timeout=1)
-                    if next_char:
-                        bracket = await asyncio.wait_for(self.reader.read(1), timeout=1)
-                        if bracket and bracket == b'[':
-                            direction = await asyncio.wait_for(self.reader.read(1), timeout=1)
-                            if direction == b'A':  # Up arrow
-                                if self.history_index < len(self.command_history) - 1:
-                                    self.history_index += 1
-                                    self.current_input = self.command_history[-(self.history_index + 1)]
-                                    await self.send_raw(f"\r{' ' * 100}\r> {self.current_input}")
-                            elif direction == b'B':  # Down arrow
-                                if self.history_index > 0:
-                                    self.history_index -= 1
-                                    self.current_input = self.command_history[-(self.history_index + 1)]
-                                    await self.send_raw(f"\r{' ' * 100}\r> {self.current_input}")
-                                elif self.history_index == 0:
-                                    self.history_index = -1
-                                    self.current_input = ""
-                                    await self.send_raw(f"\r{' ' * 100}\r> ")
-                # Handle backspace
-                elif char in ('\x08', '\x7f'):
-                    if self.current_input:
-                        self.current_input = self.current_input[:-1]
-                        await self.send_raw(f"\b \b")
-                # Handle enter
-                elif char in ('\r', '\n'):
-                    await self.send_raw("\r\n")
-                    if self.current_input:
-                        if not self.command_history or self.command_history[-1] != self.current_input:
-                            self.command_history.append(self.current_input)
-                    return self.current_input.strip()
-                # Handle regular characters
-                elif ord(char) >= 32:
-                    self.current_input += char
-                    await self.send_raw(char)
+            data = await asyncio.wait_for(self.reader.readline(), timeout=300)
+            if not data:
+                return None
+            line = data.decode('utf-8').strip()
+            if line:
+                if not self.command_history or self.command_history[-1] != line:
+                    self.command_history.append(line)
+            return line
         except asyncio.TimeoutError:
             return None
 
@@ -131,6 +92,8 @@ Commands:
   danger       - Trigger a danger check
   status       - Show character status
   quests       - Show active quests
+  !            - Show command history
+  !N           - Execute command N from history
   help         - Show this message
   quit         - Exit the game
 """
@@ -138,15 +101,38 @@ Commands:
 
     async def process_command(self, command: str):
         """Process a player command."""
-        parts = command.lower().split()
-        if not parts:
+        command_lower = command.lower().strip()
+        if not command_lower:
             return
         
-        action = parts[0]
-        args = parts[1:] if len(parts) > 1 else []
+        # Handle !N style commands (e.g., !1, !2)
+        if command_lower.startswith('!') and len(command_lower) > 1 and command_lower[1].isdigit():
+            action = "!"
+            args = [command_lower[1:]]
+        else:
+            parts = command_lower.split()
+            action = parts[0]
+            args = parts[1:] if len(parts) > 1 else []
 
         try:
-            if action == "help":
+            if action == "!":
+                if not args:
+                    await self.send(info("History:"))
+                    for i, cmd in enumerate(self.command_history[-10:], 1):
+                        await self.send(info(f"{i}. {cmd}"))
+                else:
+                    try:
+                        idx = int(args[0]) - 1
+                        if 0 <= idx < len(self.command_history):
+                            cmd = self.command_history[-(len(self.command_history) - idx)]
+                            await self.send(info(f"Executing: {cmd}"))
+                            return await self.process_command(cmd)
+                        else:
+                            await self.send(error("History index out of range"))
+                    except ValueError:
+                        await self.send(error("Usage: ! [number] - ! to show history, !N to run command N"))
+
+            elif action == "help":
                 await self.show_help()
 
             elif action == "look":
@@ -210,7 +196,7 @@ Commands:
                     await self.send(error("Talk to whom?"))
                     return
                 
-                npc_id = args[0]
+                npc_id = " ".join(args)
                 msg = self.engine.talk_to_npc(npc_id)
                 await self.send(info(msg))
 
