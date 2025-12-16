@@ -2,7 +2,8 @@
 
 import random
 from typing import Optional, List, Tuple
-from models import Player, World, Item, Encounter, Danger, Quest
+from models import Player, World, Item, Encounter, Danger, Quest, NPC
+from color import color_text, Colors, title
 
 
 class GameEngine:
@@ -12,25 +13,34 @@ class GameEngine:
         self.world = world
         self.player = player
 
-    def move_to_location(self, location_id: str) -> Optional[str]:
-        """Move player to a location. Returns error message if invalid."""
+    def move_to_location(self, direction: str) -> Optional[str]:
+        """Move player to a location based on direction. Returns error message if invalid."""
         current_location = self.world.get_location(self.player.location_id)
-        
         if not current_location:
             return "Error: Current location not found"
-        
-        if location_id not in current_location.exits.values():
-            return "You cannot go that way"
-        
-        new_location = self.world.get_location(location_id)
+
+        target_x, target_y = current_location.x, current_location.y
+        if direction == "north":
+            target_y -= 1
+        elif direction == "south":
+            target_y += 1
+        elif direction == "east":
+            target_x += 1
+        elif direction == "west":
+            target_x -= 1
+        else:
+            return f"Unknown direction: {direction}"
+
+        new_location = self.world.get_location_by_coords(target_x, target_y)
         if not new_location:
-            return f"Location {location_id} not found"
-        
+            return "You can't go that way."
+
         # Cost stamina to travel
         if not self.player.use_stamina(10):
             return "You're too tired to travel. Rest first."
-        
-        self.player.location_id = location_id
+
+        self.player.location_id = new_location.id
+        self.player.visited_locations.add(new_location.id)
         return None
 
     def get_location_description(self) -> str:
@@ -39,13 +49,24 @@ class GameEngine:
         if not location:
             return "Unknown location"
         
-        desc = f"\n{location.name}\n"
+        desc = f"\n{title(location.name)}\n"
         desc += "-" * len(location.name) + "\n"
         desc += location.description + "\n\n"
         
-        # List exits
-        if location.exits:
-            desc += "Exits: " + ", ".join(location.exits.keys()) + "\n"
+        # Find available exits dynamically
+        available_exits = []
+        x, y = location.x, location.y
+        if self.world.get_location_by_coords(x, y - 1):
+            available_exits.append("north")
+        if self.world.get_location_by_coords(x, y + 1):
+            available_exits.append("south")
+        if self.world.get_location_by_coords(x + 1, y):
+            available_exits.append("east")
+        if self.world.get_location_by_coords(x - 1, y):
+            available_exits.append("west")
+
+        if available_exits:
+            desc += "Exits: " + color_text(", ".join(available_exits), Colors.YELLOW) + "\n"
         
         # List NPCs
         if location.npcs:
@@ -53,13 +74,12 @@ class GameEngine:
             for npc_id in location.npcs:
                 npc = self.world.get_npc(npc_id)
                 if npc:
-                    desc += f"  - {npc.name}\n"
-        
+                    desc += f"  - {color_text(npc.name, Colors.BRIGHT_MAGENTA)}\n"        
         return desc
 
     def get_player_status(self) -> str:
         """Get player status display."""
-        status = f"\n{self.player.name}\n"
+        status = f"\n{color_text(self.player.name, Colors.YELLOW)}\n"
         status += f"Level {self.player.level} | Health: {self.player.health}/{self.player.max_health} | "
         status += f"Stamina: {self.player.stamina}/{self.player.max_stamina} | Gold: {self.player.gold}\n"
         status += f"Experience: {self.player.experience}\n"
@@ -83,43 +103,63 @@ class GameEngine:
         
         return "Invalid rest duration"
 
-    def use_item(self, item_id: str) -> str:
-        """Use an item from inventory."""
-        item = None
+    def _find_item_by_name_or_id(self, item_identifier: str) -> Optional[Item]:
+        """Find an item by ID or name in the world."""
+        # First, try by ID
+        item = self.world.get_item(item_identifier)
+        if item:
+            return item
+        
+        # If not found, try by name (case-insensitive)
+        item_identifier_lower = item_identifier.lower()
+        for item_obj in self.world.items.values():
+            if item_obj.name.lower() == item_identifier_lower:
+                return item_obj
+        return None
+
+    def use_item(self, item_identifier: str) -> str:
+        """Use an item from inventory by ID or name."""
+        item_to_use = self._find_item_by_name_or_id(item_identifier)
+
+        if not item_to_use:
+            return "You can't find an item like that."
+
+        # Check if the player has this item
+        player_item = None
         for inv_item in self.player.inventory:
-            if inv_item.id == item_id:
-                item = inv_item
+            if inv_item.id == item_to_use.id:
+                player_item = inv_item
                 break
+
+        if not player_item:
+            return "You don't have that item."
         
-        if not item:
-            return "You don't have that item"
-        
-        if item.type == "consumable":
-            if item.effect == "heal":
-                self.player.heal(item.amount)
-                response = f"You drink the {item.name} and feel {item.amount} health restored"
-                item.amount -= 1
-                if item.amount <= 0:
-                    self.player.remove_item(item_id)
+        if player_item.type == "consumable":
+            if player_item.effect == "heal":
+                self.player.heal(player_item.amount)
+                response = f"You drink the {player_item.name} and feel {player_item.amount} health restored"
+                player_item.amount -= 1
+                if player_item.amount <= 0:
+                    self.player.remove_item(player_item.id)
                 return response
-            elif item.effect == "stamina":
-                self.player.restore_stamina(item.amount)
-                response = f"You consume the {item.name} and regain {item.amount} stamina"
-                item.amount -= 1
-                if item.amount <= 0:
-                    self.player.remove_item(item_id)
-                return response
-        
-        elif item.type == "food":
-            if item.effect == "heal":
-                self.player.heal(item.amount)
-                response = f"You eat the {item.name} and feel {item.amount} health restored"
-                item.amount -= 1
-                if item.amount <= 0:
-                    self.player.remove_item(item_id)
+            elif player_item.effect == "stamina":
+                self.player.restore_stamina(player_item.amount)
+                response = f"You consume the {player_item.name} and regain {player_item.amount} stamina"
+                player_item.amount -= 1
+                if player_item.amount <= 0:
+                    self.player.remove_item(player_item.id)
                 return response
         
-        return f"You cannot use {item.name}"
+        elif player_item.type == "food":
+            if player_item.effect == "heal":
+                self.player.heal(player_item.amount)
+                response = f"You eat the {player_item.name} and feel {player_item.amount} health restored"
+                player_item.amount -= 1
+                if player_item.amount <= 0:
+                    self.player.remove_item(player_item.id)
+                return response
+        
+        return f"You cannot use {player_item.name}"
 
     def investigate_location(self) -> str:
         """Investigate current location for secrets/items."""
@@ -219,22 +259,25 @@ class GameEngine:
             self.player.take_damage(danger.damage)
             return f"You couldn't escape the {danger.name} and took {danger.damage} damage!"
 
-    def talk_to_npc(self, npc_id: str) -> str:
-        """Talk to an NPC by ID or name."""
+    def _find_npc_by_name(self, npc_id: str) -> Optional[NPC]:
+        """Find an NPC by ID or name."""
         npc = self.world.get_npc(npc_id)
-        
-        # If not found by ID, try to find by name (case-insensitive)
         if not npc:
             npc_id_lower = npc_id.lower()
             for npc_obj in self.world.npcs.values():
                 if npc_obj.name.lower() == npc_id_lower:
                     npc = npc_obj
                     break
-        
+        return npc
+
+    def talk_to_npc(self, npc_id: str) -> str:
+        """Talk to an NPC by ID or name."""
+        npc = self._find_npc_by_name(npc_id)
+
         if not npc:
             return "NPC not found"
         
-        response = f"\n{npc.name}\n"
+        response = f"\n{color_text(npc.name, Colors.BRIGHT_MAGENTA)}\n"
         response += f"{npc.description}\n\n"
         response += f'"{npc.dialogue}"\n'
         
@@ -246,18 +289,18 @@ class GameEngine:
         
         return response
 
-    def buy_from_npc(self, npc_id: str, item_id: str) -> str:
-        """Buy an item from an NPC."""
-        npc = self.world.get_npc(npc_id)
+    def buy_from_npc(self, npc_identifier: str, item_identifier: str) -> str:
+        """Buy an item from an NPC by ID or name."""
+        npc = self._find_npc_by_name(npc_identifier)
         if not npc or not npc.shop:
             return "This NPC doesn't sell items"
-        
-        if item_id not in npc.inventory:
-            return "They don't have that item"
-        
-        item = self.world.get_item(item_id)
+
+        item = self._find_item_by_name_or_id(item_identifier)
         if not item:
-            return "Item not found"
+            return "That item doesn't exist."
+
+        if item.id not in npc.inventory:
+            return "They don't have that item"
         
         if not self.player.spend_gold(item.value):
             return f"You don't have enough gold (costs {item.value})"
@@ -269,10 +312,29 @@ class GameEngine:
             type=item.type,
             value=item.value,
             effect=item.effect,
-            amount=item.amount
+            amount=1 if item.type != 'consumable' else item.amount
         )
         self.player.add_item(new_item)
         return f"You bought {item.name} for {item.value} gold"
+
+    def buy_item_from_npc_by_name(self, name_parts: List[str]) -> str:
+        """Buy an item from an NPC, parsing multi-word names."""
+        if not name_parts or len(name_parts) < 2:
+            return "Usage: buy <npc name> <item name>"
+
+        # Iterate through all possible split points
+        for i in range(1, len(name_parts)):
+            npc_name_guess = " ".join(name_parts[:i])
+            item_name_guess = " ".join(name_parts[i:])
+
+            npc = self._find_npc_by_name(npc_name_guess)
+            item = self._find_item_by_name_or_id(item_name_guess)
+
+            if npc and item and npc.shop and item.id in npc.inventory:
+                # Found a valid combination, proceed with purchase
+                return self.buy_from_npc(npc.id, item.id)
+
+        return "Could not find a valid NPC and item combination to buy."
 
     def get_inventory(self) -> str:
         """Get player inventory display."""
@@ -283,6 +345,91 @@ class GameEngine:
         for item in self.player.inventory:
             inv += f"  - {item.name} (x{item.amount}) - {item.description}\n"
         return inv
+
+    def accept_quest_from_npc(self, npc_identifier: str) -> str:
+        """Accept a quest from an NPC by ID or name."""
+        npc = self._find_npc_by_name(npc_identifier)
+
+        if not npc:
+            return "NPC not found."
+
+        if not npc.offers_quest:
+            return f"{npc.name} has no quest to offer."
+
+        # Find the quest associated with this NPC
+        quest_to_accept = None
+        for quest in self.world.quests.values():
+            if quest.giver == npc.id:
+                quest_to_accept = quest
+                break
+        
+        if not quest_to_accept:
+            return f"Could not find a quest from {npc.name}."
+            
+        return self.accept_quest(quest_to_accept.id)
+
+    def get_active_quests_display(self) -> str:
+        """Get a formatted string of active quests."""
+        if not self.player.active_quests:
+            return "You have no active quests"
+        
+        quests_text = "Active Quests:\n"
+        for quest_id in self.player.active_quests:
+            quest = self.world.get_quest(quest_id)
+            if quest:
+                quests_text += f"\n{quest.name}\n{quest.description}\n"
+        return quests_text
+
+    def get_map_display(self) -> str:
+        """Get a grid-based ASCII art map of visited locations."""
+        if not self.player.visited_locations:
+            return "You haven't explored anywhere yet."
+
+        visited_locs = [self.world.get_location(loc_id) for loc_id in self.player.visited_locations]
+        
+        min_x = min(loc.x for loc in visited_locs)
+        max_x = max(loc.x for loc in visited_locs)
+        min_y = min(loc.y for loc in visited_locs)
+        max_y = max(loc.y for loc in visited_locs)
+
+        cell_width = 13
+        cell_height = 3
+
+        map_width = (max_x - min_x + 1) * cell_width
+        map_height = (max_y - min_y + 1) * cell_height
+        
+        grid = [[' ' for _ in range(map_width)] for _ in range(map_height)]
+        
+        visited_coords = { (loc.x, loc.y): loc for loc in visited_locs }
+
+        for loc in visited_locs:
+            grid_x = (loc.x - min_x) * cell_width
+            grid_y = (loc.y - min_y) * cell_height
+            
+            is_current = loc.id == self.player.location_id
+            
+            room_name = loc.name[:9].center(9)
+            
+            if is_current:
+                room_display = f"<{room_name}>"
+            else:
+                room_display = f"[{room_name}]"
+
+            for i, char in enumerate(room_display):
+                # Draw room centered in the cell
+                grid[grid_y + 2][grid_x + 2 + i] = char
+
+            # Draw connections
+            # South
+            if (loc.x, loc.y + 1) in visited_coords:
+                grid[grid_y + 3][grid_x + 7] = '|'
+                grid[grid_y + 4][grid_x + 7] = '|'
+            # East
+            if (loc.x + 1, loc.y) in visited_coords:
+                grid[grid_y + 2][grid_x + 13] = '-'
+                grid[grid_y + 2][grid_x + 14] = '-'
+        
+        return "Your Explored Map:\n" + "\n".join("".join(row) for row in grid)
 
     def accept_quest(self, quest_id: str) -> str:
         """Accept a quest."""

@@ -7,7 +7,8 @@ id = "tavern"
 name = "The Rusty Ale Tavern"
 description = "A warm and welcoming tavern with a roaring fireplace. The smell of ale and hearty food fills the air."
 type = "inn"
-exits = { north = "forest", east = "market" }
+x = 1
+y = 1
 npcs = ["bartender"]
 encounters = []
 
@@ -16,7 +17,8 @@ id = "forest"
 name = "Whispering Woods"
 description = "Ancient trees tower above you. The path is overgrown with vines and strange sounds echo through the darkness."
 type = "wilderness"
-exits = { south = "tavern", east = "mountain_path", west = "cave" }
+x = 1
+y = 0
 npcs = []
 encounters = ["goblin_scout", "wolf_pack"]
 dangers = ["lost_in_forest", "bandits"]
@@ -26,7 +28,8 @@ id = "cave"
 name = "Shadowed Cavern"
 description = "A deep cave with glowing crystals embedded in the walls. The air is cool and damp."
 type = "wilderness"
-exits = { east = "forest" }
+x = 0
+y = 0
 npcs = ["hermit"]
 encounters = ["giant_spider", "bat_swarm"]
 treasure = ["crystal_shard"]
@@ -36,7 +39,8 @@ id = "mountain_path"
 name = "Mountain Pass"
 description = "A narrow, treacherous path winds up the mountainside. Cold wind whips around you."
 type = "wilderness"
-exits = { west = "forest", north = "summit", south = "village" }
+x = 2
+y = -1
 npcs = []
 encounters = ["mountain_goat", "fierce_wind"]
 dangers = ["avalanche", "falling_rocks"]
@@ -46,7 +50,8 @@ id = "summit"
 name = "Mountain Summit"
 description = "You stand at the peak, overlooking the entire realm. The view is breathtaking."
 type = "landmark"
-exits = { south = "mountain_path" }
+x = 2
+y = -2
 npcs = ["sage"]
 encounters = []
 treasure = ["ancient_scroll"]
@@ -56,7 +61,8 @@ id = "village"
 name = "Riverside Village"
 description = "A peaceful village nestled by a gentle river. Smoke rises from chimneys."
 type = "settlement"
-exits = { north = "mountain_path", south = "market", west = "camping_site" }
+x = 2
+y = 0
 npcs = ["mayor", "healer"]
 encounters = []
 
@@ -65,7 +71,8 @@ id = "market"
 name = "Trade Market"
 description = "A bustling marketplace filled with merchants, goods, and the chatter of traders."
 type = "settlement"
-exits = { west = "tavern", north = "village" }
+x = 2
+y = 1
 npcs = ["merchant"]
 encounters = []
 
@@ -74,7 +81,8 @@ id = "camping_site"
 name = "Peaceful Campground"
 description = "A serene clearing with fire rings and sheltered spots for rest."
 type = "inn"
-exits = { east = "village" }
+x = 3
+y = 0
 npcs = []
 encounters = []
 

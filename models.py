@@ -1,7 +1,7 @@
 """Game world and entity models."""
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set
 
 
 @dataclass
@@ -71,7 +71,8 @@ class Location:
     name: str
     description: str
     type: str  # inn, wilderness, settlement, landmark
-    exits: Dict[str, str]  # direction -> location_id
+    x: int = 0
+    y: int = 0
     npcs: List[str] = field(default_factory=list)  # NPC ids
     encounters: List[str] = field(default_factory=list)  # Encounter ids
     dangers: List[str] = field(default_factory=list)
@@ -93,6 +94,8 @@ class Player:
     completed_quests: List[str] = field(default_factory=list)
     experience: int = 0
     level: int = 1
+    command_history: List[str] = field(default_factory=list)
+    visited_locations: Set[str] = field(default_factory=set)
 
     def take_damage(self, damage: int):
         """Take damage."""
@@ -177,6 +180,13 @@ class World:
     def get_location(self, location_id: str) -> Optional[Location]:
         """Get a location by id."""
         return self.locations.get(location_id)
+
+    def get_location_by_coords(self, x: int, y: int) -> Optional[Location]:
+        """Get a location by coordinates."""
+        for location in self.locations.values():
+            if location.x == x and location.y == y:
+                return location
+        return None
 
     def get_npc(self, npc_id: str) -> Optional[NPC]:
         """Get an NPC by id."""
