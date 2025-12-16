@@ -2,13 +2,14 @@
 
 import asyncio
 import socket
-from typing import Optional
-from models import Player, World
+from typing import Optional, List
+from models import Player, World, Enemy
 from engine import GameEngine
 from game import Game
 from color import title, success, error, info, bold, dim, warning
 from commands import COMMANDS
 
+ACTIVE_GAMES: List["TelnetPlayer"] = []
 
 class TelnetPlayer:
     """Represents a telnet connection to a player."""
@@ -19,6 +20,7 @@ class TelnetPlayer:
         self.world = world
         self.game: Optional[Game] = None
         self.in_combat = False
+        self.current_enemy: Optional[Enemy] = None
         self.last_action = None
 
     async def send(self, message: str):
@@ -39,8 +41,6 @@ class TelnetPlayer:
             if not data:
                 return None
             line = data.decode('utf-8').strip()
-            if line and self.game:
-                self.game.player.command_history.append(line)
             return line
         except asyncio.TimeoutError:
             return None
@@ -70,31 +70,63 @@ class TelnetPlayer:
         await self.send(info("You awaken in a tavern, unsure how you got here..."))
         await self.send("")
 
+    async def process_combat_command(self, command: str) -> bool:
+        """Process a player command during combat."""
+        command_lower = command.lower().strip()
+        if not command_lower:
+            return True
+
+        parts = command_lower.split()
+        action = parts[0]
+        args = parts[1:] if len(parts) > 1 else []
+
+        # In combat, only some commands are allowed
+        if action not in ["attack", "skill", "item", "flee", "status", "look"]:
+            await self.send(error("You are in combat! You can only attack, use skills or items, or flee."))
+            return True
+
+        handler = COMMANDS.get(action)
+        if handler:
+            try:
+                message = await handler(self.game, args)
+                await self.send(message)
+            except Exception as e:
+                await self.send(error(f"An error occurred: {e}"))
+        else:
+            await self.send(error(f"Unknown command: {action}"))
+
+        # Enemy's turn
+        if self.game.in_combat and self.game.current_enemy.health > 0:
+            enemy_damage = self.game.current_enemy.attack
+            self.game.player.take_damage(enemy_damage)
+            await self.send(warning(f"{self.game.current_enemy.name} attacks you for {enemy_damage} damage!"))
+
+        # Check for combat end
+        if self.game.player.health <= 0:
+            # The game over message is handled in the main loop
+            return True 
+        
+        if self.game.current_enemy and self.game.current_enemy.health <= 0:
+            await self.send(success(f"You have defeated {self.game.current_enemy.name}!"))
+            self.game.player.add_gold(self.game.current_enemy.reward_gold)
+            self.game.player.gain_experience(self.game.current_enemy.reward_exp)
+            await self.send(success(f"You gain {self.game.current_enemy.reward_gold} gold and {self.game.current_enemy.reward_exp} experience."))
+            self.game.in_combat = False
+            self.game.current_enemy = None
+
+        return True
+
     async def process_command(self, command: str) -> bool:
         """Process a player command."""
+        if self.game.in_combat:
+            return await self.process_combat_command(command)
+
         command_lower = command.lower().strip()
         if not command_lower:
             return True
 
         if command_lower.startswith('!'):
-            # The `!N` command should not be added to history
-            if self.game and self.game.player.command_history and self.game.player.command_history[-1] == command_lower:
-                self.game.player.command_history.pop()
-
-            if len(command_lower) > 1 and command_lower[1:].isdigit():
-                try:
-                    idx = int(command_lower[1:]) - 1
-                    if 0 <= idx < len(self.game.player.command_history):
-                        cmd = self.game.player.command_history[idx]
-                        await self.send(info(f"Recalled: {cmd}"))
-                    else:
-                        await self.send(error("History index out of range"))
-                except ValueError:
-                    await self.send(error("Invalid history command. Use !N where N is a number."))
-            else:
-                await self.send(info("History:"))
-                for i, cmd in enumerate(self.game.player.command_history[-10:], 1):
-                    await self.send(info(f"{i}. {cmd}"))
+            await self.send(error("History commands are disabled."))
             return True
 
         parts = command_lower.split()
@@ -119,7 +151,15 @@ class TelnetPlayer:
     async def game_loop(self):
         """Main game loop."""
         await self.show_welcome()
-        await self.character_creation()
+
+        loaded_player = GameEngine.load_game(self.world)
+        if loaded_player:
+            self.game = Game(self.world, loaded_player.name)
+            self.game.player = loaded_player
+            self.game.engine = GameEngine(self.world, self.game.player)
+            await self.send(success(f"\nWelcome back, {self.game.player.name}!"))
+        else:
+            await self.character_creation()
         
         # Show initial location
         desc = self.game.engine.get_location_description()
@@ -128,7 +168,12 @@ class TelnetPlayer:
         # Main game loop
         while True:
             try:
-                await self.send_raw(bold("\n> "))
+                if self.game.in_combat and self.game.current_enemy:
+                    prompt = bold(f"\n({self.game.player.health} HP) vs ({self.game.current_enemy.health} HP) > ")
+                else:
+                    prompt = bold("\n> ")
+                await self.send_raw(prompt)
+                
                 line = await self.read_line()
                 
                 if line is None:
@@ -164,7 +209,9 @@ class TelnetPlayer:
 async def handle_client(reader, writer, world: World):
     """Handle a new client connection."""
     player = TelnetPlayer(reader, writer, world)
+    ACTIVE_GAMES.append(player)
     await player.handle_connection()
+    ACTIVE_GAMES.remove(player)
 
 
 async def start_server(world: World, host: str = "0.0.0.0", port: int = 2300):
@@ -184,6 +231,13 @@ async def start_server(world: World, host: str = "0.0.0.0", port: int = 2300):
     async with server:
         await server.serve_forever()
 
+def save_all_games():
+    """Save all active games."""
+    print("Saving all games...")
+    for player in ACTIVE_GAMES:
+        if player.game and player.game.engine:
+            player.game.engine.save_game()
+    print("All games saved.")
 
 def run_server(world: World, port: int = 2300):
     """Run the telnet server (blocking)."""

@@ -1,7 +1,8 @@
 """
 Represents the game state for a single player session.
 """
-from models import Player, World
+from typing import Optional
+from models import Player, World, Enemy
 from engine import GameEngine
 
 class Game:
@@ -11,6 +12,8 @@ class Game:
     """
     def __init__(self, world: World, player_name: str):
         self.world = world
+        self.in_combat = False
+        self.current_enemy: Optional[Enemy] = None
         self.player = Player(
             name=player_name,
             location_id=world.start_location

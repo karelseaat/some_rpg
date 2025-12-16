@@ -14,6 +14,20 @@ class Item:
     value: int
     effect: str
     amount: int = 1  # healing amount or quantity
+    slot: Optional[str] = None # e.g. weapon, chest
+    stats: Dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
+class Skill:
+    """Represents a skill."""
+    id: str
+    name: str
+    description: str
+    type: str  # combat, utility
+    cost: int  # mana cost
+    effect: str
+    value: int
 
 
 @dataclass
@@ -55,6 +69,20 @@ class Encounter:
 
 
 @dataclass
+class Enemy:
+    """Represents an enemy in combat."""
+    id: str
+    name: str
+    description: str
+    health: int
+    max_health: int
+    attack: int
+    defense: int
+    reward_gold: int
+    reward_exp: int
+
+
+@dataclass
 class Danger:
     """Represents a danger/hazard."""
     id: str
@@ -88,18 +116,41 @@ class Player:
     max_health: int = 100
     stamina: int = 100
     max_stamina: int = 100
+    mana: int = 50
+    max_mana: int = 50
     gold: int = 50
+    attack: int = 1
+    defense: int = 0
     inventory: List[Item] = field(default_factory=list)
+    equipment: Dict[str, Item] = field(default_factory=dict)
+    skills: List[Skill] = field(default_factory=list)
+    skill_points: int = 0
     active_quests: List[str] = field(default_factory=list)
     completed_quests: List[str] = field(default_factory=list)
     experience: int = 0
     level: int = 1
-    command_history: List[str] = field(default_factory=list)
     visited_locations: Set[str] = field(default_factory=set)
+
+    def get_total_attack(self) -> int:
+        """Calculate total attack from base stats and equipment."""
+        total = self.attack
+        for item in self.equipment.values():
+            if item.stats and "attack" in item.stats:
+                total += item.stats["attack"]
+        return total
+
+    def get_total_defense(self) -> int:
+        """Calculate total defense from base stats and equipment."""
+        total = self.defense
+        for item in self.equipment.values():
+            if item.stats and "defense" in item.stats:
+                total += item.stats["defense"]
+        return total
 
     def take_damage(self, damage: int):
         """Take damage."""
-        self.health = max(0, self.health - damage)
+        damage_taken = max(0, damage - self.get_total_defense())
+        self.health = max(0, self.health - damage_taken)
 
     def heal(self, amount: int):
         """Heal health."""
@@ -155,6 +206,17 @@ class Player:
         if self.experience >= level_threshold:
             self.level_up()
 
+    def use_mana(self, amount: int) -> bool:
+        """Use mana, return True if successful."""
+        if self.mana >= amount:
+            self.mana -= amount
+            return True
+        return False
+
+    def restore_mana(self, amount: int):
+        """Restore mana."""
+        self.mana = min(self.max_mana, self.mana + amount)
+
     def level_up(self):
         """Level up the player."""
         self.level += 1
@@ -162,6 +224,9 @@ class Player:
         self.health = self.max_health
         self.max_stamina += 5
         self.stamina = self.max_stamina
+        self.max_mana += 5
+        self.mana = self.max_mana
+        self.skill_points += 1
 
 
 class World:
@@ -171,6 +236,7 @@ class World:
         self.locations: Dict[str, Location] = {}
         self.npcs: Dict[str, NPC] = {}
         self.items: Dict[str, Item] = {}
+        self.skills: Dict[str, Skill] = {}
         self.quests: Dict[str, Quest] = {}
         self.encounters: Dict[str, Encounter] = {}
         self.dangers: Dict[str, Danger] = {}
@@ -195,6 +261,10 @@ class World:
     def get_item(self, item_id: str) -> Optional[Item]:
         """Get an item by id."""
         return self.items.get(item_id)
+
+    def get_skill(self, skill_id: str) -> Optional[Skill]:
+        """Get a skill by id."""
+        return self.skills.get(skill_id)
 
     def get_quest(self, quest_id: str) -> Optional[Quest]:
         """Get a quest by id."""

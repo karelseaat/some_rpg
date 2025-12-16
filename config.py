@@ -10,7 +10,7 @@ try:
 except ImportError:
     import tomli as tomllib
 
-from models import Location, NPC, Item, Quest, Encounter, Danger, World
+from models import Location, NPC, Item, Quest, Encounter, Danger, World, Skill
 
 
 def load_world_config(config_path: str = "world.toml") -> World:
@@ -43,6 +43,20 @@ def load_world_config(config_path: str = "world.toml") -> World:
                 amount=item_data.get("amount", 1),
             )
             world.items[item.id] = item
+
+    # Load skills
+    if "skills" in config:
+        for skill_data in config["skills"]:
+            skill = Skill(
+                id=skill_data["id"],
+                name=skill_data["name"],
+                description=skill_data["description"],
+                type=skill_data["type"],
+                cost=skill_data["cost"],
+                effect=skill_data["effect"],
+                value=skill_data["value"],
+            )
+            world.skills[skill.id] = skill
 
     # Load NPCs
     if "npcs" in config:

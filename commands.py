@@ -14,8 +14,15 @@ async def handle_help(game: Game, args: List[str]) -> str:
 Commands:
   look         - Look around current location
   travel <dir> - Travel in a direction (north, south, east, west)
-  inventory    - Check your inventory
+  inventory    - Check your inventory and equipment
   use <item>   - Use an item from your inventory
+  equip <item> - Equip an item from your inventory
+  unequip <slot> - Unequip an item from a slot
+  skills       - View your skills
+  learn <skill> - Learn a new skill using skill points
+  attack       - Attack the current enemy in combat
+  cast <skill> - Cast a skill in combat
+  flee         - Flee from combat
   rest <type>  - Rest (short/long)
   talk <npc>   - Talk to an NPC
   buy <npc> <item> - Buy an item from an NPC
@@ -25,8 +32,6 @@ Commands:
   encounter    - Try to encounter something (if available)
   danger       - Trigger a danger check
   status       - Show character status
-  !            - Show command history
-  !N           - Recall command N to the prompt
   help         - Show this message
   quit         - Exit the game
 """
@@ -101,8 +106,12 @@ async def handle_investigate(game: Game, args: List[str]) -> str:
 
 async def handle_encounter(game: Game, args: List[str]) -> str:
     """Handles the 'encounter' command."""
-    msg, gold = game.engine.encounter_enemy()
-    return success(msg) if "defeated" in msg or "peacefully" in msg else warning(msg)
+    msg, enemy = game.engine.encounter_enemy()
+    if enemy:
+        game.in_combat = True
+        game.current_enemy = enemy
+        return warning(msg)
+    return info(msg)
 
 async def handle_danger(game: Game, args: List[str]) -> str:
     """Handles the 'danger' command."""
@@ -129,6 +138,83 @@ async def handle_quit(game: Game, args: List[str]) -> str:
     """Handles the 'quit' command."""
     return "QUIT"
 
+async def handle_equip(game: Game, args: List[str]) -> str:
+    """Handles the 'equip' command."""
+    if not args:
+        return error("Equip what?")
+    item_name = " ".join(args)
+    return info(game.engine.equip_item(item_name))
+
+async def handle_unequip(game: Game, args: List[str]) -> str:
+    """Handles the 'unequip' command."""
+    if not args:
+        return error("Unequip what? (e.g., 'weapon', 'chest')")
+    slot = " ".join(args)
+    return info(game.engine.unequip_item(slot))
+
+async def handle_skills(game: Game, args: List[str]) -> str:
+    """Handles the 'skills' command."""
+    return info(game.engine.get_skills_display())
+
+async def handle_learn(game: Game, args: List[str]) -> str:
+    """Handles the 'learn' command."""
+    if not args:
+        return error("Learn what skill?")
+    skill_name = " ".join(args)
+    return info(game.engine.learn_skill(skill_name))
+
+async def handle_attack(game: Game, args: List[str]) -> str:
+    """Handles the 'attack' command."""
+    if not game.in_combat:
+        return error("You are not in combat.")
+    
+    player_attack = game.player.get_total_attack()
+    enemy = game.current_enemy
+    
+    enemy.health = max(0, enemy.health - player_attack)
+    
+    return success(f"You attack {enemy.name} for {player_attack} damage.")
+
+async def handle_cast(game: Game, args: List[str]) -> str:
+    """Handles the 'cast' command for using skills."""
+    if not game.in_combat:
+        return error("You can only cast spells in combat.")
+        
+    if not args:
+        return error("Cast what skill?")
+        
+    skill_name = " ".join(args)
+    skill_to_use = None
+    for skill in game.player.skills:
+        if skill.name.lower() == skill_name.lower():
+            skill_to_use = skill
+            break
+            
+    if not skill_to_use:
+        return error(f"You don't know the {skill_name} skill.")
+        
+    if not game.player.use_mana(skill_to_use.cost):
+        return error("Not enough mana.")
+        
+    if skill_to_use.effect == "damage":
+        enemy = game.current_enemy
+        enemy.health = max(0, enemy.health - skill_to_use.value)
+        return success(f"You cast {skill_to_use.name} on {enemy.name} for {skill_to_use.value} damage.")
+    elif skill_to_use.effect == "heal":
+        game.player.heal(skill_to_use.value)
+        return success(f"You cast {skill_to_use.name} and heal for {skill_to_use.value} health.")
+    
+    return error("That skill has no effect in this situation.")
+
+async def handle_flee(game: Game, args: List[str]) -> str:
+    """Handles the 'flee' command."""
+    if not game.in_combat:
+        return error("You are not in combat.")
+        
+    game.in_combat = False
+    game.current_enemy = None
+    return info("You have fled from combat.")
+
 COMMANDS: Dict[str, CommandHandler] = {
     "help": handle_help,
     "look": handle_look,
@@ -144,5 +230,12 @@ COMMANDS: Dict[str, CommandHandler] = {
     "danger": handle_danger,
     "quest": handle_quest,
     "map": handle_map,
+    "equip": handle_equip,
+    "unequip": handle_unequip,
+    "skills": handle_skills,
+    "learn": handle_learn,
+    "attack": handle_attack,
+    "cast": handle_cast,
+    "flee": handle_flee,
     "quit": handle_quit,
 }

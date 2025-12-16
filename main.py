@@ -4,11 +4,16 @@
 import sys
 import argparse
 from config import load_world_config
-from server import run_server
+from server import run_server, save_all_games
+from database import create_db_and_tables
 
 
 def main():
     """Main entry point."""
+    
+    print("Initializing database...")
+    create_db_and_tables()
+    
     parser = argparse.ArgumentParser(
         description="SomeRPG - Text-based multiplayer RPG"
     )
@@ -43,6 +48,7 @@ def main():
         run_server(world, port=args.port)
     except KeyboardInterrupt:
         print("\nServer shutting down...")
+        save_all_games()
         sys.exit(0)
 
 

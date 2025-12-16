@@ -1,9 +1,11 @@
 """Game engine logic."""
 
 import random
+import os
 from typing import Optional, List, Tuple
-from models import Player, World, Item, Encounter, Danger, Quest, NPC
+from models import Player, World, Item, Encounter, Danger, Quest, NPC, Enemy, Skill
 from color import color_text, Colors, title
+from database import SessionLocal, PlayerState, WorldState
 
 
 class GameEngine:
@@ -81,8 +83,16 @@ class GameEngine:
         """Get player status display."""
         status = f"\n{color_text(self.player.name, Colors.YELLOW)}\n"
         status += f"Level {self.player.level} | Health: {self.player.health}/{self.player.max_health} | "
-        status += f"Stamina: {self.player.stamina}/{self.player.max_stamina} | Gold: {self.player.gold}\n"
+        status += f"Stamina: {self.player.stamina}/{self.player.max_stamina} | Mana: {self.player.mana}/{self.player.max_mana} | Gold: {self.player.gold}\n"
+        status += f"Attack: {self.player.get_total_attack()} | Defense: {self.player.get_total_defense()}\n"
         status += f"Experience: {self.player.experience}\n"
+        status += f"Skill Points: {self.player.skill_points}\n"
+        
+        if self.player.equipment:
+            status += "\nEquipment:\n"
+            for slot, item in self.player.equipment.items():
+                status += f"  - {slot.capitalize()}: {item.name}\n"
+        
         return status
 
     def rest(self, duration: str = "short") -> str:
@@ -194,48 +204,48 @@ class GameEngine:
         
         return "You search but find nothing"
 
-    def encounter_enemy(self) -> Tuple[str, int]:
-        """Handle a random encounter. Returns (message, gold_reward)."""
+    def encounter_enemy(self) -> Tuple[str, Optional[Enemy]]:
+        """Handle a random encounter. Returns (message, enemy object)."""
         location = self.world.get_location(self.player.location_id)
         
         if not location or not location.encounters:
-            return "No encounter", 0
+            return "No encounter here.", None
         
         encounter_id = random.choice(location.encounters)
         encounter = self.world.get_encounter(encounter_id)
         
         if not encounter:
-            return "Encounter failed to load", 0
+            return "Encounter failed to load.", None
         
         if encounter.type == "combat":
-            # Simple combat: player wins if they defeat the difficulty
             difficulty_score = {"easy": 1, "medium": 2, "hard": 3}.get(encounter.difficulty, 1)
-            player_power = self.player.level + random.randint(1, 10)
-            enemy_power = difficulty_score * 5 + random.randint(1, 8)
             
-            if player_power > enemy_power:
-                gold = encounter.reward * difficulty_score
-                exp = encounter.reward
-                self.player.add_gold(gold)
-                self.player.gain_experience(exp)
-                return f"You defeated the {encounter.name} and gained {gold} gold and {exp} exp!", gold
-            else:
-                damage = 5 * difficulty_score
-                self.player.take_damage(damage)
-                return f"The {encounter.name} defeated you! You took {damage} damage", 0
+            enemy = Enemy(
+                id=encounter.id,
+                name=encounter.name,
+                description=encounter.description,
+                health=difficulty_score * 20,
+                max_health=difficulty_score * 20,
+                attack=difficulty_score * 5,
+                defense=difficulty_score * 2,
+                reward_gold=encounter.reward,
+                reward_exp=encounter.reward,
+            )
+            
+            return f"You are attacked by a {enemy.name}!", enemy
         
         elif encounter.type == "interaction":
             msg = f"You encountered a {encounter.name}: {encounter.description}\n"
             msg += f"The encounter is resolved peacefully and you gain {encounter.reward} gold"
             self.player.add_gold(encounter.reward)
-            return msg, encounter.reward
+            return msg, None
         
         elif encounter.type == "obstacle":
             msg = f"You face an obstacle: {encounter.name}\n"
             msg += f"You overcome it with effort"
-            return msg, 0
+            return msg, None
         
-        return "Unknown encounter type", 0
+        return "Unknown encounter type.", None
 
     def trigger_danger(self) -> str:
         """Trigger a random danger. Returns damage and message."""
@@ -338,12 +348,21 @@ class GameEngine:
 
     def get_inventory(self) -> str:
         """Get player inventory display."""
-        if not self.player.inventory:
-            return "Your inventory is empty"
-        
+        if not self.player.inventory and not self.player.equipment:
+            return "Your inventory and equipment are empty"
+            
         inv = "Inventory:\n"
+        if not self.player.inventory:
+            inv += "  - (empty)\n"
         for item in self.player.inventory:
             inv += f"  - {item.name} (x{item.amount}) - {item.description}\n"
+            
+        inv += "\nEquipment:\n"
+        if not self.player.equipment:
+            inv += "  - (none)\n"
+        for slot, item in self.player.equipment.items():
+            inv += f"  - {slot.capitalize()}: {item.name} (equipped)\n"
+            
         return inv
 
     def accept_quest_from_npc(self, npc_identifier: str) -> str:
@@ -445,3 +464,159 @@ class GameEngine:
         
         self.player.active_quests.append(quest_id)
         return f"Quest accepted: {quest.name}\n{quest.description}"
+
+    def equip_item(self, item_name: str) -> str:
+        """Equip an item from inventory."""
+        item_to_equip = None
+        for item in self.player.inventory:
+            if item.name.lower() == item_name.lower():
+                item_to_equip = item
+                break
+        
+        if not item_to_equip:
+            return f"You don't have a {item_name}."
+            
+        if not item_to_equip.slot:
+            return f"You can't equip {item_to_equip.name}."
+            
+        # Check if there is already an item in that slot
+        if item_to_equip.slot in self.player.equipment:
+            # Unequip the old item first
+            self.unequip_item(item_to_equip.slot)
+            
+        # Equip the new item
+        self.player.inventory.remove(item_to_equip)
+        self.player.equipment[item_to_equip.slot] = item_to_equip
+        
+        return f"You equipped the {item_to_equip.name}."
+
+    def unequip_item(self, slot: str) -> str:
+        """Unequip an item from a slot."""
+        if slot not in self.player.equipment:
+            return f"You have nothing equipped in the {slot} slot."
+            
+        item_to_unequip = self.player.equipment.pop(slot)
+        self.player.add_item(item_to_unequip)
+        
+        return f"You unequipped the {item_to_unequip.name}."
+
+    def get_skills_display(self) -> str:
+        """Get player's skills display."""
+        if not self.player.skills:
+            return "You have not learned any skills."
+        
+        display = "Your Skills:\n"
+        for skill in self.player.skills:
+            display += f"  - {skill.name}: {skill.description}\n"
+        
+        display += f"\nSkill points available: {self.player.skill_points}"
+        return display
+
+    def learn_skill(self, skill_name: str) -> str:
+        """Learn a new skill."""
+        if self.player.skill_points <= 0:
+            return "You have no skill points to spend."
+            
+        skill_to_learn = None
+        for skill in self.world.skills.values():
+            if skill.name.lower() == skill_name.lower():
+                skill_to_learn = skill
+                break
+
+        if not skill_to_learn:
+            return f"There is no skill named '{skill_name}'."
+            
+        if skill_to_learn in self.player.skills:
+            return f"You already know the {skill_to_learn.name} skill."
+            
+        self.player.skill_points -= 1
+        self.player.skills.append(skill_to_learn)
+        
+        return f"You have learned the {skill_to_learn.name} skill!"
+
+    def save_game(self):
+        db = SessionLocal()
+        
+        # Player state
+        player_state = db.query(PlayerState).filter_by(id=1).first()
+        if not player_state:
+            player_state = PlayerState(id=1)
+            db.add(player_state)
+
+        player_state.name = self.player.name
+        player_state.location_id = self.player.location_id
+        player_state.health = self.player.health
+        player_state.max_health = self.player.max_health
+        player_state.stamina = self.player.stamina
+        player_state.max_stamina = self.player.max_stamina
+        player_state.gold = self.player.gold
+        player_state.attack = self.player.attack
+        player_state.defense = self.player.defense
+        player_state.mana = self.player.mana
+        player_state.max_mana = self.player.max_mana
+        player_state.experience = self.player.experience
+        player_state.level = self.player.level
+        player_state.skill_points = self.player.skill_points
+        player_state.inventory = self.player.inventory
+        player_state.equipment = self.player.equipment
+        player_state.skills = self.player.skills
+        player_state.active_quests = self.player.active_quests
+        player_state.completed_quests = self.player.completed_quests
+        player_state.visited_locations = self.player.visited_locations
+        
+        # World state
+        for loc_id, location in self.world.locations.items():
+            world_state = db.query(WorldState).filter_by(location_id=loc_id).first()
+            if not world_state:
+                world_state = WorldState(location_id=loc_id)
+                db.add(world_state)
+            world_state.looted_treasures = location.treasure
+
+        db.commit()
+        db.close()
+        return "Game saved."
+
+    @staticmethod
+    def load_game(world: World) -> Optional[Player]:
+        if not os.path.exists("somerpg.db"):
+            return None
+            
+        db = SessionLocal()
+        
+        player_state = db.query(PlayerState).filter_by(id=1).first()
+        if not player_state:
+            db.close()
+            return None
+            
+        player = Player(
+            name=player_state.name,
+            location_id=player_state.location_id,
+            health=player_state.health,
+            max_health=player_state.max_health,
+            stamina=player_state.stamina,
+            max_stamina=player_state.max_stamina,
+            gold=player_state.gold,
+            attack=player_state.attack,
+            defense=player_state.defense,
+            mana=player_state.mana,
+            max_mana=player_state.max_mana,
+            experience=player_state.experience,
+            level=player_state.level,
+            skill_points=player_state.skill_points,
+            inventory=player_state.inventory,
+            equipment=player_state.equipment,
+            skills=player_state.skills,
+            active_quests=player_state.active_quests,
+            completed_quests=player_state.completed_quests,
+            visited_locations=player_state.visited_locations
+        )
+        
+        world_states = db.query(WorldState).all()
+        for ws in world_states:
+            location = world.get_location(ws.location_id)
+            if location:
+                location.treasure = ws.looted_treasures
+        
+        db.close()
+        return player
+    

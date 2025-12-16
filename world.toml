@@ -32,7 +32,7 @@ x = 0
 y = 0
 npcs = ["hermit"]
 encounters = ["giant_spider", "bat_swarm"]
-treasure = ["crystal_shard"]
+treasure = ["crystal_shard", "rusty_sword"]
 
 [[locations]]
 id = "mountain_path"
@@ -100,7 +100,7 @@ name = "Theron the Trader"
 description = "A sharp-eyed merchant wearing fine clothes."
 dialogue = "Looking for supplies? I've got the best deals in the realm!"
 shop = true
-inventory = ["health_potion", "stamina_potion", "rations", "rope", "torch"]
+inventory = ["health_potion", "stamina_potion", "rations", "rope", "torch", "leather_armor"]
 
 [[npcs]]
 id = "healer"
@@ -191,6 +191,45 @@ description = "A mysterious scroll with faded writing"
 type = "treasure"
 value = 250
 effect = "none"
+
+[[items]]
+id = "rusty_sword"
+name = "Rusty Sword"
+description = "An old sword, but still sharp."
+type = "equipment"
+slot = "weapon"
+value = 75
+effect = "none"
+stats = { attack = 5 }
+
+[[items]]
+id = "leather_armor"
+name = "Leather Armor"
+description = "A simple but effective leather tunic."
+type = "equipment"
+slot = "chest"
+value = 100
+effect = "none"
+stats = { defense = 3 }
+
+# Skills
+[[skills]]
+id = "fireball"
+name = "Fireball"
+description = "A fiery ball of magic that damages an enemy."
+type = "combat"
+cost = 10
+effect = "damage"
+value = 25
+
+[[skills]]
+id = "first_aid"
+name = "First Aid"
+description = "A simple healing spell that restores a small amount of health."
+type = "utility"
+cost = 5
+effect = "heal"
+value = 20
 
 # Quests
 [[quests]]
