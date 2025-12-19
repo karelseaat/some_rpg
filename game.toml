@@ -1,0 +1,24 @@
+# Gameplay settings for SomeRPG
+
+[player]
+travel_stamina_cost = 10
+
+[world]
+encounter_chance = 0.25
+danger_chance = 0.15
+investigate_treasure_chance = 0.7
+
+[mechanics]
+rest_short_health_gain = 20
+rest_short_stamina_gain = 30
+
+disarm_trap_dexterity_bonus = 0.05
+disarm_trap_base_chance = { easy = 0.8, medium = 0.5, hard = 0.2 }
+
+[combat]
+# These are multipliers for enemy stats based on difficulty
+difficulty_multipliers = { easy = 1, medium = 2, hard = 3 }
+
+enemy_health_multiplier = 20
+enemy_attack_multiplier = 5
+enemy_defense_multiplier = 2

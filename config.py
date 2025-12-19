@@ -10,7 +10,43 @@ try:
 except ImportError:
     import tomli as tomllib
 
-from models import Location, NPC, Item, Quest, Encounter, Danger, World, Skill
+from models import Location, NPC, Item, Quest, Encounter, Danger, World, Skill, Features, GameSettings
+
+
+def load_game_settings(config_path: str = "game.toml") -> GameSettings:
+    """Load game settings from TOML file."""
+    if not os.path.exists(config_path):
+        print(f"Warning: Game settings file '{config_path}' not found. Using default settings.")
+        return GameSettings()
+
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
+
+    settings = GameSettings()
+
+    if "player" in config:
+        settings.travel_stamina_cost = config["player"].get("travel_stamina_cost", settings.travel_stamina_cost)
+
+    if "world" in config:
+        settings.encounter_chance = config["world"].get("encounter_chance", settings.encounter_chance)
+        settings.danger_chance = config["world"].get("danger_chance", settings.danger_chance)
+        settings.investigate_treasure_chance = config["world"].get("investigate_treasure_chance", settings.investigate_treasure_chance)
+
+    if "mechanics" in config:
+        settings.rest_short_health_gain = config["mechanics"].get("rest_short_health_gain", settings.rest_short_health_gain)
+        settings.rest_short_stamina_gain = config["mechanics"].get("rest_short_stamina_gain", settings.rest_short_stamina_gain)
+        settings.disarm_trap_dexterity_bonus = config["mechanics"].get("disarm_trap_dexterity_bonus", settings.disarm_trap_dexterity_bonus)
+        if "disarm_trap_base_chance" in config["mechanics"]:
+            settings.disarm_trap_base_chance.update(config["mechanics"]["disarm_trap_base_chance"])
+
+    if "combat" in config:
+        if "difficulty_multipliers" in config["combat"]:
+            settings.difficulty_multipliers.update(config["combat"]["difficulty_multipliers"])
+        settings.enemy_health_multiplier = config["combat"].get("enemy_health_multiplier", settings.enemy_health_multiplier)
+        settings.enemy_attack_multiplier = config["combat"].get("enemy_attack_multiplier", settings.enemy_attack_multiplier)
+        settings.enemy_defense_multiplier = config["combat"].get("enemy_defense_multiplier", settings.enemy_defense_multiplier)
+        
+    return settings
 
 
 def load_world_config(config_path: str = "world.toml") -> World:
@@ -24,11 +60,21 @@ def load_world_config(config_path: str = "world.toml") -> World:
         config = tomllib.load(f)
 
     world = World()
+    world.settings = load_game_settings()
     
     # Load world metadata
     if "world" in config:
         world.name = config["world"].get("name", "Unknown World")
         world.start_location = config["world"].get("start_location", "")
+        if "start_inventory" in config["world"]:
+            for item_id, quantity in config["world"]["start_inventory"].items():
+                world.start_inventory[item_id] = quantity
+
+    # Load features
+    if "features" in config:
+        world.features.npcs_enabled = config["features"].get("npcs_enabled", True)
+        world.features.enemies_enabled = config["features"].get("enemies_enabled", True)
+        world.features.traders_enabled = config["features"].get("traders_enabled", True)
 
     # Load items
     if "items" in config:
@@ -41,6 +87,8 @@ def load_world_config(config_path: str = "world.toml") -> World:
                 value=item_data["value"],
                 effect=item_data["effect"],
                 amount=item_data.get("amount", 1),
+                slot=item_data.get("slot"),
+                stats=item_data.get("stats", {})
             )
             world.items[item.id] = item
 
@@ -93,8 +141,9 @@ def load_world_config(config_path: str = "world.toml") -> World:
                 id=danger_data["id"],
                 name=danger_data["name"],
                 description=danger_data["description"],
-                damage=danger_data["damage"],
-                escape_difficulty=danger_data["escape_difficulty"],
+                type=danger_data["type"],
+                damage=danger_data.get("damage"),
+                escape_difficulty=danger_data.get("escape_difficulty"),
             )
             world.dangers[danger.id] = danger
 

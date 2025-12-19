@@ -28,14 +28,49 @@ Commands:
   buy <npc> <item> - Buy an item from an NPC
   quest        - Manage quests (list, accept)
   map          - Show a map of traveled areas
-  investigate  - Search location for treasure
-  encounter    - Try to encounter something (if available)
-  danger       - Trigger a danger check
+  investigate  - Search for treasure and traps
   status       - Show character status
+  spend <stat> <points> - Spend attribute points
+  disarm       - Try to disarm a trap
   help         - Show this message
   quit         - Exit the game
 """
     return info(help_text)
+
+async def handle_spend(game: Game, args: List[str]) -> str:
+    """Handles the 'spend' command."""
+    if len(args) != 2:
+        return error("Usage: spend <stat> <points>")
+    
+    stat = args[0].lower()
+    try:
+        points = int(args[1])
+    except ValueError:
+        return error("Points must be a number.")
+
+    if points <= 0:
+        return error("You must spend a positive number of points.")
+
+    if game.player.attribute_points < points:
+        return error("You don't have enough attribute points.")
+
+    if stat not in ["strength", "dexterity", "intelligence"]:
+        return error("You can only spend points on strength, dexterity, or intelligence.")
+
+    if stat == "strength":
+        game.player.strength += points
+    elif stat == "dexterity":
+        game.player.dexterity += points
+    elif stat == "intelligence":
+        game.player.intelligence += points
+
+    game.player.attribute_points -= points
+    return success(f"You spent {points} points on {stat}.")
+
+async def handle_disarm(game: Game, args: List[str]) -> str:
+    """Handles the 'disarm' command."""
+    msg = game.engine.disarm_trap()
+    return success(msg) if "disarmed" in msg else error(msg)
 
 async def handle_look(game: Game, args: List[str]) -> str:
     """Handles the 'look' command."""
@@ -51,7 +86,7 @@ async def handle_travel(game: Game, args: List[str]) -> str:
         return error("Travel where? (north, south, east, west)")
 
     direction = args[0]
-    err = game.engine.move_to_location(direction)
+    err, enemy = game.engine.move_to_location(direction)
     if err:
         return error(err)
 
@@ -59,11 +94,11 @@ async def handle_travel(game: Game, args: List[str]) -> str:
     response = success(f"You travel {direction} to {new_location.name}")
     response += "\n" + info(game.engine.get_location_description())
 
-    # Random danger chance
-    import random
-    if random.random() < 0.15:  # 15% chance
-        msg = game.engine.trigger_danger()
-        response += "\n" + warning(msg)
+    if enemy:
+        game.in_combat = True
+        game.current_enemy = enemy
+        response += "\n" + warning(f"You have encountered a {enemy.name}!")
+
     return response
 
 async def handle_inventory(game: Game, args: List[str]) -> str:
@@ -113,10 +148,6 @@ async def handle_encounter(game: Game, args: List[str]) -> str:
         return warning(msg)
     return info(msg)
 
-async def handle_danger(game: Game, args: List[str]) -> str:
-    """Handles the 'danger' command."""
-    return warning(game.engine.trigger_danger())
-
 async def handle_quest(game: Game, args: List[str]) -> str:
     """Handles the 'quest' command."""
     subcommand = args[0] if args else "list"
@@ -136,7 +167,8 @@ async def handle_map(game: Game, args: List[str]) -> str:
 
 async def handle_quit(game: Game, args: List[str]) -> str:
     """Handles the 'quit' command."""
-    return "QUIT"
+    save_msg = game.engine.save_game()
+    return f"{save_msg}\nQUIT"
 
 async def handle_equip(game: Game, args: List[str]) -> str:
     """Handles the 'equip' command."""
@@ -156,12 +188,6 @@ async def handle_skills(game: Game, args: List[str]) -> str:
     """Handles the 'skills' command."""
     return info(game.engine.get_skills_display())
 
-async def handle_learn(game: Game, args: List[str]) -> str:
-    """Handles the 'learn' command."""
-    if not args:
-        return error("Learn what skill?")
-    skill_name = " ".join(args)
-    return info(game.engine.learn_skill(skill_name))
 
 async def handle_attack(game: Game, args: List[str]) -> str:
     """Handles the 'attack' command."""
@@ -226,16 +252,15 @@ COMMANDS: Dict[str, CommandHandler] = {
     "talk": handle_talk,
     "buy": handle_buy,
     "investigate": handle_investigate,
-    "encounter": handle_encounter,
-    "danger": handle_danger,
     "quest": handle_quest,
     "map": handle_map,
     "equip": handle_equip,
     "unequip": handle_unequip,
     "skills": handle_skills,
-    "learn": handle_learn,
     "attack": handle_attack,
     "cast": handle_cast,
     "flee": handle_flee,
     "quit": handle_quit,
+    "disarm": handle_disarm,
+    "spend": handle_spend,
 }

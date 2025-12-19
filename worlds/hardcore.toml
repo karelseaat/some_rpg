@@ -1,6 +1,11 @@
 [world]
-name = "Realm of SomeRPG"
-start_location = "tavern"
+name = "Realm of SomeRPG (Hardcore)"
+start_location = "forest"
+
+[features]
+npcs_enabled = false
+enemies_enabled = true
+traders_enabled = false
 
 [[locations]]
 id = "tavern"
@@ -20,8 +25,8 @@ type = "wilderness"
 x = 1
 y = 0
 npcs = []
-encounters = ["goblin_scout", "wolf_pack"]
-dangers = ["lost_in_forest", "bandits"]
+encounters = ["goblin_scout", "wolf_pack", "giant_spider"]
+dangers = ["lost_in_forest", "bandits", "avalanche"]
 
 [[locations]]
 id = "cave"
@@ -31,7 +36,7 @@ type = "wilderness"
 x = 0
 y = 0
 npcs = ["hermit"]
-encounters = ["giant_spider", "bat_swarm"]
+encounters = ["giant_spider", "bat_swarm", "wolf_pack"]
 treasure = ["crystal_shard", "rusty_sword"]
 
 [[locations]]
@@ -42,7 +47,7 @@ type = "wilderness"
 x = 2
 y = -1
 npcs = []
-encounters = ["mountain_goat", "fierce_wind"]
+encounters = ["mountain_goat", "fierce_wind", "giant_spider"]
 dangers = ["avalanche", "falling_rocks"]
 
 [[locations]]
@@ -311,11 +316,20 @@ type = "obstacle"
 difficulty = "medium"
 reward = 0
 
+[[encounters]]
+id = "bandits"
+name = "Bandit Attack"
+description = "A group of bandits demand your gold!"
+type = "combat"
+difficulty = "medium"
+reward = 75
+
 # Dangers
 [[dangers]]
 id = "lost_in_forest"
 name = "Lost in the Woods"
 description = "You've become disoriented and cannot find your way"
+type = "trap"
 damage = 5
 escape_difficulty = "medium"
 
@@ -323,13 +337,13 @@ escape_difficulty = "medium"
 id = "bandits"
 name = "Bandit Ambush"
 description = "Bandits leap from the bushes!"
-damage = 15
-escape_difficulty = "hard"
+type = "combat"
 
 [[dangers]]
 id = "avalanche"
 name = "Avalanche"
 description = "Snow and ice crash down the mountainside"
+type = "trap"
 damage = 40
 escape_difficulty = "hard"
 
@@ -337,5 +351,6 @@ escape_difficulty = "hard"
 id = "falling_rocks"
 name = "Falling Rocks"
 description = "Loose rocks tumble from above"
+type = "trap"
 damage = 20
 escape_difficulty = "medium"

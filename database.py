@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, PickleType
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy.ext.mutable import MutableList, MutableDict, MutableSet
 
 # Database setup
 DATABASE_URL = "sqlite:///somerpg.db"
@@ -10,8 +10,8 @@ Base = declarative_base()
 
 class PlayerState(Base):
     __tablename__ = 'player_state'
-    id = Column(Integer, primary_key=True, index=True, default=1)
-    name = Column(String)
+    name = Column(String, primary_key=True, index=True)
+    password_hash = Column(String)
     location_id = Column(String)
     health = Column(Integer)
     max_health = Column(Integer)
@@ -20,17 +20,22 @@ class PlayerState(Base):
     mana = Column(Integer, default=50)
     max_mana = Column(Integer, default=50)
     gold = Column(Integer)
+    strength = Column(Integer, default=5)
+    dexterity = Column(Integer, default=5)
+    intelligence = Column(Integer, default=5)
     attack = Column(Integer, default=1)
     defense = Column(Integer, default=0)
     experience = Column(Integer)
     level = Column(Integer)
     skill_points = Column(Integer, default=0)
+    attribute_points = Column(Integer, default=0)
     inventory = Column(MutableList.as_mutable(PickleType), default=[])
-    equipment = Column(MutableList.as_mutable(PickleType), default={})
+    equipment = Column(MutableDict.as_mutable(PickleType), default={})
     skills = Column(MutableList.as_mutable(PickleType), default=[])
     active_quests = Column(MutableList.as_mutable(PickleType), default=[])
     completed_quests = Column(MutableList.as_mutable(PickleType), default=[])
-    visited_locations = Column(MutableList.as_mutable(PickleType), default=set())
+    visited_locations = Column(MutableSet.as_mutable(PickleType), default=set())
+
 
 class WorldState(Base):
     __tablename__ = 'world_state'

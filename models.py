@@ -31,6 +31,14 @@ class Skill:
 
 
 @dataclass
+class Features:
+    """Represents game features that can be enabled/disabled."""
+    npcs_enabled: bool = True
+    enemies_enabled: bool = True
+    traders_enabled: bool = True
+
+
+@dataclass
 class NPC:
     """Represents a non-player character."""
     id: str
@@ -88,8 +96,9 @@ class Danger:
     id: str
     name: str
     description: str
-    damage: int
-    escape_difficulty: str
+    type: str  # trap
+    damage: Optional[int] = None
+    escape_difficulty: Optional[str] = None
 
 
 @dataclass
@@ -105,12 +114,15 @@ class Location:
     encounters: List[str] = field(default_factory=list)  # Encounter ids
     dangers: List[str] = field(default_factory=list)
     treasure: List[str] = field(default_factory=list)  # Item ids
+    revealed_dangers: Set[str] = field(default_factory=set)
+    known_dangers: Set[str] = field(default_factory=set)
 
 
 @dataclass
 class Player:
     """Represents the player character."""
     name: str
+    password: str
     location_id: str
     health: int = 100
     max_health: int = 100
@@ -119,12 +131,16 @@ class Player:
     mana: int = 50
     max_mana: int = 50
     gold: int = 50
+    strength: int = 5
+    dexterity: int = 5
+    intelligence: int = 5
     attack: int = 1
     defense: int = 0
     inventory: List[Item] = field(default_factory=list)
     equipment: Dict[str, Item] = field(default_factory=dict)
     skills: List[Skill] = field(default_factory=list)
     skill_points: int = 0
+    attribute_points: int = 0
     active_quests: List[str] = field(default_factory=list)
     completed_quests: List[str] = field(default_factory=list)
     experience: int = 0
@@ -133,7 +149,7 @@ class Player:
 
     def get_total_attack(self) -> int:
         """Calculate total attack from base stats and equipment."""
-        total = self.attack
+        total = self.attack + self.strength
         for item in self.equipment.values():
             if item.stats and "attack" in item.stats:
                 total += item.stats["attack"]
@@ -141,7 +157,7 @@ class Player:
 
     def get_total_defense(self) -> int:
         """Calculate total defense from base stats and equipment."""
-        total = self.defense
+        total = self.defense + self.dexterity
         for item in self.equipment.values():
             if item.stats and "defense" in item.stats:
                 total += item.stats["defense"]
@@ -183,9 +199,22 @@ class Player:
         # Check if item already in inventory
         for inv_item in self.inventory:
             if inv_item.id == item.id:
-                inv_item.amount += item.amount
+                inv_item.amount += 1
                 return
-        self.inventory.append(item)
+        
+        # Add new item as a copy
+        new_item = Item(
+            id=item.id,
+            name=item.name,
+            description=item.description,
+            type=item.type,
+            value=item.value,
+            effect=item.effect,
+            amount=1,
+            slot=item.slot,
+            stats=item.stats.copy() if item.stats else {}
+        )
+        self.inventory.append(new_item)
 
     def remove_item(self, item_id: str) -> Optional[Item]:
         """Remove item from inventory."""
@@ -227,6 +256,24 @@ class Player:
         self.max_mana += 5
         self.mana = self.max_mana
         self.skill_points += 1
+        self.attribute_points += 3
+
+
+@dataclass
+class GameSettings:
+    """Represents game settings."""
+    travel_stamina_cost: int = 10
+    encounter_chance: float = 0.25
+    danger_chance: float = 0.15
+    investigate_treasure_chance: float = 0.7
+    rest_short_health_gain: int = 20
+    rest_short_stamina_gain: int = 30
+    disarm_trap_dexterity_bonus: float = 0.05
+    disarm_trap_base_chance: Dict[str, float] = field(default_factory=lambda: {"easy": 0.8, "medium": 0.5, "hard": 0.2})
+    difficulty_multipliers: Dict[str, int] = field(default_factory=lambda: {"easy": 1, "medium": 2, "hard": 3})
+    enemy_health_multiplier: int = 20
+    enemy_attack_multiplier: int = 5
+    enemy_defense_multiplier: int = 2
 
 
 class World:
@@ -242,6 +289,9 @@ class World:
         self.dangers: Dict[str, Danger] = {}
         self.name: str = ""
         self.start_location: str = ""
+        self.start_inventory: Dict[str, int] = {}
+        self.features: Features = Features()
+        self.settings: GameSettings = GameSettings()
 
     def get_location(self, location_id: str) -> Optional[Location]:
         """Get a location by id."""

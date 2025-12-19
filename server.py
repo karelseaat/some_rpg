@@ -3,6 +3,7 @@
 import asyncio
 import socket
 from typing import Optional, List
+import bcrypt
 from models import Player, World, Enemy
 from engine import GameEngine
 from game import Game
@@ -42,7 +43,7 @@ class TelnetPlayer:
                 return None
             line = data.decode('utf-8').strip()
             return line
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, UnicodeDecodeError):
             return None
 
     async def show_welcome(self):
@@ -53,22 +54,7 @@ class TelnetPlayer:
         await self.send(title("=" * 60))
         await self.send("")
 
-    async def character_creation(self):
-        """Create a new character."""
-        await self.send(info("Let's create your character!"))
-        
-        await self.send(info("\nWhat is your name, adventurer? "), )
-        await self.send_raw("")
-        name = await self.read_line()
-        
-        if not name or len(name) < 1:
-            name = "Adventurer"
-        
-        self.game = Game(self.world, name)
-        
-        await self.send(success(f"\nWelcome, {self.game.player.name}!"))
-        await self.send(info("You awaken in a tavern, unsure how you got here..."))
-        await self.send("")
+
 
     async def process_combat_command(self, command: str) -> bool:
         """Process a player command during combat."""
@@ -116,6 +102,9 @@ class TelnetPlayer:
 
         return True
 
+
+
+
     async def process_command(self, command: str) -> bool:
         """Process a player command."""
         if self.game.in_combat:
@@ -137,30 +126,67 @@ class TelnetPlayer:
         if handler:
             try:
                 message = await handler(self.game, args)
-                if message == "QUIT":
-                    await self.send(info("Goodbye, adventurer!"))
-                    return False
                 await self.send(message)
             except Exception as e:
                 await self.send(error(f"An error occurred: {e}"))
         else:
             await self.send(error(f"Unknown command: {action}. Type 'help' for commands."))
         
+        # After any action, check for danger
+        danger_msg = self.game.engine.trigger_danger()
+        if danger_msg:
+            await self.send(warning(danger_msg))
+
+        trap_msg = self.game.engine.trigger_hidden_dangers()
+        if trap_msg:
+            await self.send(warning(trap_msg))
+        
         return True
+
+    async def character_creation(self, password: str):
+        """Create a new character."""
+        await self.send(info("Let's create your character!"))
+        
+        await self.send(info("\nWhat is your name, adventurer? "), )
+        await self.send_raw("")
+        name = await self.read_line()
+        
+        if not name or len(name) < 1:
+            name = "Adventurer"
+        
+        self.game = Game(self.world, name, password)
+        
+        await self.send(success(f"\nWelcome, {self.game.player.name}!"))
+        await self.send(info("You awaken in a tavern, unsure how you got here..."))
+        await self.send("")
 
     async def game_loop(self):
         """Main game loop."""
         await self.show_welcome()
 
-        loaded_player = GameEngine.load_game(self.world)
-        if loaded_player:
-            self.game = Game(self.world, loaded_player.name)
-            self.game.player = loaded_player
-            self.game.engine = GameEngine(self.world, self.game.player)
-            await self.send(success(f"\nWelcome back, {self.game.player.name}!"))
+        await self.send(info("Enter your password to load a character, or type 'new' to create a new one: "))
+        await self.send_raw("")
+        password = await self.read_line()
+
+        if not password:
+            return
+
+        if password.lower() == 'new':
+            password = GameEngine.generate_password()
+            await self.send(info(f"Your new password is: {password}"))
+            await self.send(warning("Write it down! You will need it to log in next time."))
+            await self.character_creation(password)
         else:
-            await self.character_creation()
-        
+            loaded_player = GameEngine.load_game(self.world, password)
+            if loaded_player:
+                self.game = Game(self.world, loaded_player.name, password)
+                self.game.player = loaded_player
+                self.game.engine = GameEngine(self.world, self.game.player)
+                await self.send(success(f"\nWelcome back, {self.game.player.name}!"))
+            else:
+                await self.send(info("Password not found. Creating a new character with this password."))
+                await self.character_creation(password)
+
         # Show initial location
         desc = self.game.engine.get_location_description()
         await self.send(info(desc))
@@ -185,6 +211,9 @@ class TelnetPlayer:
                 result = await self.process_command(line)
                 if result is False:
                     break
+                
+                # Save game after every command
+                self.game.engine.save_game()
                 
                 # Check if player is dead
                 if self.game.player.health <= 0:
