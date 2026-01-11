@@ -33,7 +33,7 @@ type = "wilderness"
 x = 1
 y = 0
 npcs = []
-encounters = ["goblin_scout", "wolf_pack", "bandit_attack"]
+encounters = ["goblin_scout", "wolf_pack", "bandits"]
 
 [[locations]]
 id = "cave"
@@ -205,6 +205,25 @@ value = 250
 effect = "none"
 
 [[items]]
+id = "wolf_pelt"
+name = "Wolf Pelt"
+description = "The fur of a wolf."
+type = "treasure"
+value = 15
+effect = "none"
+
+[[items]]
+id = "fire_sword"
+name = "Flame Blade"
+description = "A sword wreathed in magical fire."
+type = "equipment"
+slot = "weapon"
+value = 200
+effect = "none"
+stats = { attack = 15 }
+element = "fire"
+
+[[items]]
 id = "rusty_sword"
 name = "Rusty Sword"
 description = "An old sword, but still sharp."
@@ -253,6 +272,9 @@ location = "cave"
 objectives = ["Find 3 glowing mushrooms", "Return to Sister Mara"]
 reward = 100
 reward_item = "health_potion"
+xp_reward = 50
+required_item = "crystal_shard"
+required_item_amount = 1
 
 [[quests]]
 id = "bandit_trouble"
@@ -263,6 +285,9 @@ location = "forest"
 objectives = ["Discover bandit hideout", "Defeat bandit leader"]
 reward = 150
 reward_item = "none"
+xp_reward = 100
+required_kill = "bandits"
+required_kill_amount = 1
 
 [[quests]]
 id = "sage_wisdom"
@@ -273,8 +298,26 @@ location = "summit"
 objectives = ["Meditate on the summit", "Learn the ancient ways"]
 reward = 200
 reward_item = "ancient_scroll"
+xp_reward = 200
 
 # Encounters
+[[items]]
+id = "mega_potion"
+name = "Mega Potion"
+description = "A glowing purple potion that heals a lot."
+type = "consumable"
+value = 100
+effect = "heal_50"
+amount = 50
+
+[[recipes]]
+id = "mega_potion_craft"
+name = "Mega Potion"
+description = "Combine two health potions"
+ingredients = { health_potion = 2 }
+result = "mega_potion"
+result_amount = 1
+
 [[encounters]]
 id = "goblin_scout"
 name = "Goblin Scout"
@@ -290,6 +333,8 @@ description = "Three hungry wolves with glowing eyes"
 type = "combat"
 difficulty = "medium"
 reward = 50
+loot = ["wolf_pelt"]
+loot_chance = 0.8
 
 [[encounters]]
 id = "giant_spider"
@@ -298,6 +343,8 @@ description = "An enormous spider with legs as thick as tree trunks"
 type = "combat"
 difficulty = "hard"
 reward = 100
+weaknesses = ["fire"]
+resistances = ["poison"]
 
 [[encounters]]
 id = "bat_swarm"

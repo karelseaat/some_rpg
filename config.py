@@ -10,7 +10,7 @@ try:
 except ImportError:
     import tomli as tomllib
 
-from models import Location, NPC, Item, Quest, Encounter, Danger, World, Skill, Features, GameSettings
+from models import Location, NPC, Item, Quest, Encounter, Danger, World, Skill, Features, GameSettings, Recipe
 
 
 def load_game_settings(config_path: str = "game.toml") -> GameSettings:
@@ -45,6 +45,21 @@ def load_game_settings(config_path: str = "game.toml") -> GameSettings:
         settings.enemy_health_multiplier = config["combat"].get("enemy_health_multiplier", settings.enemy_health_multiplier)
         settings.enemy_attack_multiplier = config["combat"].get("enemy_attack_multiplier", settings.enemy_attack_multiplier)
         settings.enemy_defense_multiplier = config["combat"].get("enemy_defense_multiplier", settings.enemy_defense_multiplier)
+        
+        settings.base_crit_chance = config["combat"].get("base_crit_chance", settings.base_crit_chance)
+        settings.dexterity_crit_bonus = config["combat"].get("dexterity_crit_bonus", settings.dexterity_crit_bonus)
+        settings.crit_multiplier = config["combat"].get("crit_multiplier", settings.crit_multiplier)
+        settings.elemental_weakness_multiplier = config["combat"].get("elemental_weakness_multiplier", settings.elemental_weakness_multiplier)
+        settings.elemental_resistance_multiplier = config["combat"].get("elemental_resistance_multiplier", settings.elemental_resistance_multiplier)
+
+    if "progression" in config:
+        settings.base_xp_threshold = config["progression"].get("base_xp_threshold", settings.base_xp_threshold)
+        settings.xp_multiplier_per_level = config["progression"].get("xp_multiplier_per_level", settings.xp_multiplier_per_level)
+        settings.health_per_level = config["progression"].get("health_per_level", settings.health_per_level)
+        settings.stamina_per_level = config["progression"].get("stamina_per_level", settings.stamina_per_level)
+        settings.mana_per_level = config["progression"].get("mana_per_level", settings.mana_per_level)
+        settings.skill_points_per_level = config["progression"].get("skill_points_per_level", settings.skill_points_per_level)
+        settings.attribute_points_per_level = config["progression"].get("attribute_points_per_level", settings.attribute_points_per_level)
         
     return settings
 
@@ -88,7 +103,8 @@ def load_world_config(config_path: str = "world.toml") -> World:
                 effect=item_data["effect"],
                 amount=item_data.get("amount", 1),
                 slot=item_data.get("slot"),
-                stats=item_data.get("stats", {})
+                stats=item_data.get("stats", {}),
+                element=item_data.get("element", "physical")
             )
             world.items[item.id] = item
 
@@ -103,8 +119,22 @@ def load_world_config(config_path: str = "world.toml") -> World:
                 cost=skill_data["cost"],
                 effect=skill_data["effect"],
                 value=skill_data["value"],
+                element=skill_data.get("element", "physical")
             )
             world.skills[skill.id] = skill
+
+    # Load recipes
+    if "recipes" in config:
+        for recipe_data in config["recipes"]:
+            recipe = Recipe(
+                id=recipe_data["id"],
+                name=recipe_data["name"],
+                description=recipe_data["description"],
+                ingredients=recipe_data["ingredients"],
+                result=recipe_data["result"],
+                result_amount=recipe_data.get("result_amount", 1)
+            )
+            world.recipes[recipe.id] = recipe
 
     # Load NPCs
     if "npcs" in config:
@@ -131,6 +161,10 @@ def load_world_config(config_path: str = "world.toml") -> World:
                 type=enc_data["type"],
                 difficulty=enc_data["difficulty"],
                 reward=enc_data["reward"],
+                weaknesses=enc_data.get("weaknesses", []),
+                resistances=enc_data.get("resistances", []),
+                loot=enc_data.get("loot", []),
+                loot_chance=enc_data.get("loot_chance", 0.5),
             )
             world.encounters[encounter.id] = encounter
 
@@ -181,7 +215,12 @@ def load_world_config(config_path: str = "world.toml") -> World:
                 objectives=quest_data["objectives"],
                 reward=quest_data["reward"],
                 reward_item=quest_data.get("reward_item"),
+                xp_reward=quest_data.get("xp_reward", 0),
                 completed=False,
+                required_item=quest_data.get("required_item"),
+                required_item_amount=quest_data.get("required_item_amount", 0),
+                required_kill=quest_data.get("required_kill"),
+                required_kill_amount=quest_data.get("required_kill_amount", 0),
             )
             world.quests[quest.id] = quest
 

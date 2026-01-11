@@ -1,0 +1,111 @@
+---
+- name: Install SomeRPG
+  hosts: all
+  become: yes
+  vars:
+    app_dir: /opt/somerpg
+    app_user: somerpg
+    app_group: somerpg
+
+  tasks:
+    - name: Install system dependencies
+      apt:
+        name:
+          - python3
+          - python3-venv
+          - python3-pip
+          - git
+          - acl
+        state: present
+        update_cache: yes
+
+    - name: Create application group
+      group:
+        name: "{{ app_group }}"
+        state: present
+
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        system: yes
+        create_home: no
+        shell: /bin/false
+
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+
+    - name: Copy project files
+      # Using synchronize is better for recursive copy but requires rsync.
+      # We'll use copy for simplicity, but be aware it copies everything including .git and .venv if not careful.
+      # To avoid copying the local .venv (which might be wrong arch), we should ideally exclude it.
+      # But standard 'copy' module doesn't support exclude.
+      # We will assume the user handles exclusions or we just overwrite.
+      # A better way for a robust playbook is to git clone from a repo.
+      # Since we are deploying *this* local folder, we'll stick to copy.
+      copy:
+        src: ../
+        dest: "{{ app_dir }}/"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+        directory_mode: '0755'
+
+    - name: Ensure main script is executable
+      file:
+        path: "{{ app_dir }}/main.py"
+        mode: '0755'
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+
+    - name: Create virtual environment
+      command: python3 -m venv .venv
+      args:
+        chdir: "{{ app_dir }}"
+        creates: "{{ app_dir }}/.venv"
+      become_user: "{{ app_user }}"
+
+    - name: Install python dependencies
+      command: "{{ app_dir }}/.venv/bin/pip install -r requirements.txt"
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+
+    - name: Create systemd service file
+      copy:
+        dest: /etc/systemd/system/somerpg.service
+        content: |
+          [Unit]
+          Description=SomeRPG Server
+          After=network.target
+
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          Group={{ app_group }}
+          WorkingDirectory={{ app_dir }}
+          ExecStart={{ app_dir }}/.venv/bin/python main.py
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      notify:
+        - Reload systemd
+        - Restart somerpg
+
+  handlers:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart somerpg
+      systemd:
+        name: somerpg
+        state: restarted
+        enabled: yes

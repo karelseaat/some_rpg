@@ -1,7 +1,6 @@
 """
 Represents the game state for a single player session.
 """
-import bcrypt
 from typing import Optional
 from models import Player, World, Enemy
 from engine import GameEngine

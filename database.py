@@ -1,11 +1,18 @@
-from sqlalchemy import create_engine, Column, Integer, String, PickleType
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import Column, Integer, String, PickleType
 from sqlalchemy.ext.mutable import MutableList, MutableDict, MutableSet
 
 # Database setup
-DATABASE_URL = "sqlite:///somerpg.db"
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+DATABASE_URL = "sqlite+aiosqlite:///somerpg.db"
+engine = create_async_engine(DATABASE_URL, echo=False)
+AsyncSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
 Base = declarative_base()
 
 class PlayerState(Base):
@@ -42,10 +49,13 @@ class WorldState(Base):
     id = Column(Integer, primary_key=True, index=True)
     location_id = Column(String, unique=True)
     looted_treasures = Column(MutableList.as_mutable(PickleType), default=[])
+    ground_items = Column(MutableList.as_mutable(PickleType), default=[])
 
-def create_db_and_tables():
-    Base.metadata.create_all(bind=engine)
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 if __name__ == "__main__":
-    create_db_and_tables()
+    import asyncio
+    asyncio.run(create_db_and_tables())
     print("Database and tables created.")

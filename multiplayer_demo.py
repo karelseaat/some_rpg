@@ -1,0 +1,92 @@
+import asyncio
+import sys
+
+async def read_until_prompt(reader, name):
+    buffer = ""
+    while True:
+        try:
+            data = await asyncio.wait_for(reader.read(4096), timeout=2.0)
+            if not data:
+                break
+            decoded = data.decode('utf-8', errors='ignore')
+            # Print with prefix to distinguish clients
+            for line in decoded.splitlines():
+                if line.strip():
+                    print(f"[{name} Recv]: {line}")
+            buffer += decoded
+            if ">" in buffer.splitlines()[-1]:
+                return buffer
+        except asyncio.TimeoutError:
+            break
+    return buffer
+
+async def send_command(writer, command, name):
+    print(f"[{name} Send]: {command}")
+    writer.write((command + "\n").encode('utf-8'))
+    await writer.drain()
+    await asyncio.sleep(0.5)
+
+async def run_client(name, password, actions):
+    try:
+        reader, writer = await asyncio.open_connection('127.0.0.1', 2300)
+    except ConnectionRefusedError:
+        print(f"[{name}] Could not connect.")
+        return
+
+    # Initial welcome
+    await read_until_prompt(reader, name)
+    
+    # Login/Create
+    await send_command(writer, "new", name)
+    await read_until_prompt(reader, name)
+    await send_command(writer, password, name) # Password
+    await read_until_prompt(reader, name)
+    await send_command(writer, name, name) # Name
+    await read_until_prompt(reader, name)
+    
+    await send_command(writer, "toggle_color", name)
+    await read_until_prompt(reader, name)
+
+    # Execute scripted actions
+    for action in actions:
+        await send_command(writer, action, name)
+        await read_until_prompt(reader, name)
+        await asyncio.sleep(1) # Wait a bit between actions
+
+    await send_command(writer, "quit", name)
+    writer.close()
+    await writer.wait_closed()
+
+async def main():
+    # Alice's script: Buy potions, Craft Mega Potion, Give to Bob, Say hello
+    alice_actions = [
+        "travel east", # To Market
+        "buy Theron the Trader Health Potion",
+        "buy Theron the Trader Health Potion",
+        "craft Mega Potion",
+        "inventory", # Verify craft
+        "travel west", # Back to Tavern
+        "say Hello Bob! I made this for you.",
+        "give Bob Mega Potion"
+    ]
+
+    # Bob's script: Wait for Alice, Check inventory, Yell thanks
+    bob_actions = [
+        "look", # Just wait a bit
+        "look",
+        "look",
+        "look", # Waiting for Alice to arrive and craft
+        "look",
+        "inventory", # Check if received
+        "yell THANKS ALICE!",
+        "equip Mega Potion" # Just to see it
+    ]
+
+    # Run both concurrently
+    await asyncio.gather(
+        run_client("Alice", "AlicePass123", alice_actions),
+        run_client("Bob", "BobPass123", bob_actions)
+    )
+
+if __name__ == "__main__":
+    asyncio.run(main())

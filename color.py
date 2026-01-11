@@ -45,51 +45,71 @@ class Colors:
     RESET = '\033[0m'
 
 
-def color_text(text, color):
+def color_text(text, color, game=None):
     """Apply color to text and reset after."""
+    if game and not game.player.use_color:
+        return text
     return f"{color}{text}{Colors.RESET}"
 
 
-def bold(text):
+def bold(text, game=None):
     """Make text bold."""
+    if game and not game.player.use_color:
+        return text
     return f"{Colors.BOLD}{text}{Colors.RESET}"
 
 
-def dim(text):
+def dim(text, game=None):
     """Dim text."""
+    if game and not game.player.use_color:
+        return text
     return f"{Colors.DIM}{text}{Colors.RESET}"
 
 
-def title(text):
+def title(text, game=None):
     """Format as title (bold cyan)."""
-    return color_text(bold(text), Colors.CYAN)
+    if game and not game.player.use_color:
+        return text
+    return color_text(bold(text, game=game), Colors.CYAN, game=game)
 
 
-def success(text):
+def success(text, game=None):
     """Format as success (bright green)."""
-    return color_text(text, Colors.BRIGHT_GREEN)
+    if game and not game.player.use_color:
+        return text
+    return color_text(text, Colors.BRIGHT_GREEN, game=game)
 
 
-def error(text):
+def error(text, game=None):
     """Format as error (bright red)."""
-    return color_text(text, Colors.BRIGHT_RED)
+    if game and not game.player.use_color:
+        return text
+    return color_text(text, Colors.BRIGHT_RED, game=game)
 
 
-def warning(text):
+def warning(text, game=None):
     """Format as warning (bright yellow)."""
-    return color_text(text, Colors.BRIGHT_YELLOW)
+    if game and not game.player.use_color:
+        return text
+    return color_text(text, Colors.BRIGHT_YELLOW, game=game)
 
 
-def info(text):
+def info(text, game=None):
     """Format as info (bright blue)."""
-    return color_text(text, Colors.BRIGHT_BLUE)
+    if game and not game.player.use_color:
+        return text
+    return color_text(text, Colors.BRIGHT_BLUE, game=game)
 
 
-def highlight(text):
+def highlight(text, game=None):
     """Highlight text (bold yellow)."""
-    return color_text(bold(text), Colors.YELLOW)
+    if game and not game.player.use_color:
+        return text
+    return color_text(bold(text, game=game), Colors.YELLOW, game=game)
 
 
-def dim_text(text):
+def dim_text(text, game=None):
     """Dim gray text."""
-    return color_text(text, Colors.BRIGHT_BLACK)
+    if game and not game.player.use_color:
+        return text
+    return color_text(text, Colors.BRIGHT_BLACK, game=game)

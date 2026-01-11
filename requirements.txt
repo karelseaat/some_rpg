@@ -1,3 +1,5 @@
 tomli
 sqlalchemy
 bcrypt
+dill
+ollama

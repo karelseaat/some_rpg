@@ -6,13 +6,15 @@ import argparse
 from config import load_world_config
 from server import run_server, save_all_games
 from database import create_db_and_tables
+from logger import logger
 
 
 def main():
     """Main entry point."""
     
-    print("Initializing database...")
-    create_db_and_tables()
+    logger.info("Initializing database...")
+    import asyncio
+    asyncio.run(create_db_and_tables())
     
     parser = argparse.ArgumentParser(
         description="SomeRPG - Text-based multiplayer RPG"
@@ -56,7 +58,7 @@ def main():
 
     config_path = f"worlds/{args.config}"
 
-    print(f"Loading world configuration from {config_path}...")
+    logger.info(f"Loading world configuration from {config_path}...")
     world = load_world_config(config_path)
     
     if args.list_features:
@@ -66,24 +68,26 @@ def main():
             print(f"  - {feature}: {status}")
         sys.exit(0)
 
-    print(f"Loaded world: {world.name}")
-    print(f"Locations: {len(world.locations)}")
+    logger.info(f"Loaded world: {world.name}")
+    logger.info(f"Locations: {len(world.locations)}")
     
     npcs_status = f"{len(world.npcs)}" if world.features.npcs_enabled else "0 (disabled)"
     enemies_status = f"{len(world.encounters)} (enabled)" if world.features.enemies_enabled else "0 (disabled)"
     traders_status = "enabled" if world.features.traders_enabled else "disabled"
     
-    print(f"NPCs: {npcs_status}")
-    print(f"Enemies: {enemies_status}")
-    print(f"Traders: {traders_status}")
+    logger.info(f"NPCs: {npcs_status}")
+    logger.info(f"Enemies: {enemies_status}")
+    logger.info(f"Traders: {traders_status}")
     
-    print(f"Items: {len(world.items)}")
-    print(f"Quests: {len(world.quests)}")
+    logger.info(f"Items: {len(world.items)}")
+    logger.info(f"Quests: {len(world.quests)}")
 
     try:
         run_server(world, port=args.port)
     except KeyboardInterrupt:
-        print("\nServer shutting down...")
+        logger.info("Server shutting down...")
+        # save_all_games is now async-aware but might be tricky to call from here if loop is closed
+        # Ideally run_server handles cleanup
         save_all_games()
         sys.exit(0)
 
