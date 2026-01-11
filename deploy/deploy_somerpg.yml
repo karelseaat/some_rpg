@@ -1,0 +1,109 @@
+# deploy/deploy_somerpg.yml
+---
+- name: Deploy SomeRPG Server
+  hosts: somerpg_servers
+  become: yes # Run tasks with sudo privileges
+  vars:
+    app_user: somerpg_user
+    app_group: somerpg_group
+    app_install_dir: /opt/somerpg
+    git_repo_url: "https://github.com/your-org/somerpg.git" # <<< CHANGE THIS TO YOUR REPO URL
+    game_port: 5000
+    config_file: "world.toml" # Or your custom config, e.g., "worlds/hardcore.toml"
+
+  tasks:
+    - name: Ensure Python3, python3-venv, and Git are installed
+      ansible.builtin.package:
+        name:
+          - python3
+          - python3-venv
+          - git
+        state: present
+
+    - name: Create application group
+      ansible.builtin.group:
+        name: "{{ app_group }}"
+        state: present
+
+    - name: Create application user
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        home: "{{ app_install_dir }}"
+        create_home: no # We'll manage the dir ourselves
+        shell: /sbin/nologin
+        state: present
+
+    - name: Ensure application installation directory exists
+      ansible.builtin.file:
+        path: "{{ app_install_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+
+    - name: Clone SomeRPG repository
+      ansible.builtin.git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ app_install_dir }}"
+        version: main # Or your deployment branch/tag
+        force: yes # Force update if already exists
+      become_user: "{{ app_user }}" # Run git clone as app_user
+
+    - name: Create Python virtual environment
+      ansible.builtin.command: "{{ app_install_dir }}/.venv/bin/python -m venv {{ app_install_dir }}/.venv"
+      args:
+        creates: "{{ app_install_dir }}/.venv/bin/activate" # Only run if venv doesn't exist
+      become_user: "{{ app_user }}"
+
+    - name: Install Python dependencies
+      ansible.builtin.pip:
+        requirements: "{{ app_install_dir }}/requirements.txt"
+        virtualenv: "{{ app_install_dir }}/.venv"
+        virtualenv_command: "{{ app_install_dir }}/.venv/bin/python -m venv" # Specify venv command explicitly
+      become_user: "{{ app_user }}"
+
+    - name: Create systemd service file for SomeRPG
+      ansible.builtin.template:
+        src: somerpg.service.j2 # This will be a local file you create
+        dest: /etc/systemd/system/somerpg.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify:
+        - Reload systemd daemon
+        - Restart somerpg service
+
+    - name: Enable and start SomeRPG service
+      ansible.builtin.systemd:
+        name: somerpg
+        daemon_reload: yes
+        enabled: yes
+        state: started
+
+    - name: Allow game_port through UFW (if UFW is active)
+      community.general.ufw:
+        rule: allow
+        port: "{{ game_port }}"
+        proto: tcp
+      ignore_errors: yes # Ignore if UFW is not installed/active
+      when: ansible_os_family == "Debian" # UFW is common on Debian/Ubuntu
+
+    - name: Allow game_port through firewalld (if firewalld is active)
+      ansible.posix.firewalld:
+        port: "{{ game_port }}/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      ignore_errors: yes # Ignore if firewalld is not installed/active
+      when: ansible_os_family == "RedHat" # firewalld is common on CentOS/RHEL
+
+  handlers:
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Restart somerpg service
+      ansible.builtin.systemd:
+        name: somerpg
+        state: restarted

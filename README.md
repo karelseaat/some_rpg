@@ -1,200 +1,158 @@
 # SomeRPG - Text-Based Multiplayer RPG
 
-A telnet-based text adventure RPG with colored terminal output, configurable world via TOML, and multiple gameplay mechanics.
+Welcome to SomeRPG, a complete text-based multiplayer RPG with a telnet server, colored terminal output, and a TOML-based world configuration.
 
-## Features
+## ⚡ Quick Start
 
-- **Telnet Server**: Connect multiple players simultaneously via telnet
-- **Colored Terminal Output**: ANSI color codes for enhanced visual experience
-- **TOML World Config**: Define locations, NPCs, items, quests, and encounters in a simple TOML file
-- **Player Actions**:
-  - `travel` - Move between locations
-  - `look` - Examine current location
-  - `rest` - Restore health and stamina
-  - `use` - Use items from inventory
-  - `talk` - Converse with NPCs
-  - `buy` - Purchase items from merchants
-  - `investigate` - Search for hidden treasures
-  - `encounter` - Fight enemies or interact with creatures
-  - `danger` - Face random dangers
-  - `inventory` - Check items
-  - `status` - View character stats
-  - `quests` - View active quests
-
-## Installation
-
-1. Create virtual environment:
+### 1. Start the Server
 ```bash
+# Navigate to the project directory
 cd /path/to/somerpg
-python3 -m venv .venv
+
+# Activate the virtual environment
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Run the server
+python main.py
 ```
+You should see: `SomeRPG Server started on 0.0.0.0:5000`
 
-2. Install dependencies:
-```bash
-pip install tomli
-```
-
-## Running the Server
-
-```bash
-python main.py [--config world.toml] [--port 5000] [--host 0.0.0.0]
-```
-
-Examples:
-```bash
-python main.py                              # Default config, port 5000
-python main.py --port 3000                  # Custom port
-python main.py --config custom_world.toml   # Custom config file
-```
-
-## Connecting as a Client
-
-From another terminal:
+### 2. Connect
+In a separate terminal window:
 ```bash
 telnet localhost 5000
 ```
 
-## Configuration
+### 3. Play
+*   Enter your character name.
+*   Type `help` to see commands.
+*   Type `look` to see your surroundings.
+*   Type `travel north` (or other directions) to move.
 
-Edit `world.toml` to define your world:
+---
 
-### World Metadata
-```toml
-[world]
-name = "Your World Name"
-start_location = "tavern"
-```
+## 🎮 Features
 
-### Locations
-```toml
-[[locations]]
-id = "tavern"
-name = "The Rusty Ale Tavern"
-description = "A warm tavern..."
-type = "inn"  # inn, wilderness, settlement, landmark
-exits = { north = "forest", east = "market" }
-npcs = ["bartender"]
-encounters = ["goblin_scout"]
-dangers = []
-treasure = []
-```
+*   **Multiplayer Telnet Server:** Async architecture supporting multiple concurrent players.
+*   **Rich World:** 8 interconnected locations, from taverns to mountain summits.
+*   **Configurable:** Entire game world defined in a simple `world.toml` file.
+*   **Colored Output:** ANSI color codes for an atmospheric experience.
+*   **Comprehensive Systems:**
+    *   **Stats:** Health, Stamina, Gold, Experience, Level.
+    *   **Inventory:** Manage consumables, food, tools, and treasure.
+    *   **Combat:** Turn-based encounters with difficulty scaling and rewards.
+    *   **Quests:** Accept and track objectives from NPCs.
+    *   **NPCs & Shops:** Interact with characters and trade gold for items.
+    *   **Dangers:** Environmental hazards with escape mechanics.
 
-### NPCs
-```toml
-[[npcs]]
-id = "merchant"
-name = "Theron"
-description = "A sharp-eyed merchant"
-dialogue = "Looking for supplies?"
-shop = true
-offers_quest = false
-inventory = ["health_potion", "rope"]
-```
-
-### Items
-```toml
-[[items]]
-id = "health_potion"
-name = "Health Potion"
-description = "Restores vitality"
-type = "consumable"  # consumable, food, tool, treasure, equipment
-value = 50
-effect = "heal"  # heal, stamina, light, none
-amount = 1
-```
-
-### Quests
-```toml
-[[quests]]
-id = "mushroom_hunt"
-name = "The Mushroom Hunt"
-description = "Find rare mushrooms"
-giver = "healer"  # NPC id
-location = "cave"
-objectives = ["Find 3 glowing mushrooms", "Return to Sister Mara"]
-reward = 100
-reward_item = "health_potion"
-```
-
-### Encounters
-```toml
-[[encounters]]
-id = "goblin_scout"
-name = "Goblin Scout"
-description = "A small goblin with a mischievous grin"
-type = "combat"  # combat, interaction, obstacle
-difficulty = "easy"  # easy, medium, hard
-reward = 25
-```
-
-### Dangers
-```toml
-[[dangers]]
-id = "lost_in_forest"
-name = "Lost in the Woods"
-description = "You've become disoriented"
-damage = 5
-escape_difficulty = "medium"
-```
-
-## Game Mechanics
+## 🕹️ Game Mechanics
 
 ### Player Stats
-- **Health**: Reduced by dangers and combat, restored by rest and items
-- **Stamina**: Used for traveling, restored by rest and items
-- **Gold**: Earned from encounters, spent on items
-- **Experience**: Gained from combat, levels player up
-- **Level**: Increases when enough experience is gained
+*   **Health:** Reduced by combat/dangers, restored by resting or items.
+*   **Stamina:** Consumed by traveling, restored by resting or items.
+*   **Gold:** Earned from encounters, spent at shops.
+*   **Experience & Level:** XP from combat leads to level ups (+Health, +Stamina).
 
-### Combat
-When encountering an enemy, success depends on:
-- Player level and random luck
-- Enemy difficulty (easy, medium, hard)
-- Rewards scale with difficulty
+### Commands
+*   **Navigation:** `look`, `travel <direction>` (north, south, east, west)
+*   **Interaction:** `talk <npc>`, `buy <npc> <item>`, `use <item>`
+*   **Action:** `investigate` (search for treasure), `encounter` (trigger combat), `danger` (check hazards)
+*   **Character:** `status`, `inventory`, `quests`, `rest <short|long>`
+*   **System:** `help`, `quit`
 
-### Healing & Items
-- Consumables can restore health or stamina
-- Food items provide healing
-- Tools can be collected (rope, torch)
-- Treasure can be found through investigation
+### Combat & Dangers
+*   **Encounters:** Success depends on Player Level + Luck vs. Enemy Difficulty.
+*   **Dangers:** Random environmental hazards (e.g., "Lost in Forest") that deal damage based on escape difficulty.
 
-### Dangers
-Each location can have dangers that trigger randomly:
-- Damage varies by danger
-- Escape difficulty affects chance of avoiding damage
+---
 
-## Project Structure
+## ⚙️ Configuration (`world.toml`)
+
+The entire world is defined in `world.toml`. You can edit this file to expand the game without touching Python code.
+
+### Structure
+```toml
+[world]          # Metadata (name, start location)
+[[locations]]    # Define areas (id, description, exits)
+[[npcs]]         # Define characters (dialogue, shop inventory)
+[[items]]        # Define objects (consumables, equipment)
+[[quests]]       # Define objectives and rewards
+[[encounters]]   # Define enemies (difficulty, rewards)
+[[dangers]]      # Define environmental hazards
+```
+
+### Example: Adding a Location
+```toml
+[[locations]]
+id = "blacksmith"
+name = "Blacksmith's Forge"
+description = "The air is hot and smells of soot."
+type = "settlement"
+exits = { west = "market" }
+npcs = ["blacksmith_npc"]
+encounters = []
+dangers = []
+treasure = ["hammer"]
+```
+
+---
+
+## 🛠️ Installation & Setup
+
+### Requirements
+*   Python 3.9+
+*   Standard Telnet client (pre-installed on most OSs)
+
+### Manual Setup
+If you need to reinstall dependencies:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+*(Note: `tomli` is the only dependency for Python < 3.11)*
+
+### Server Options
+```bash
+python main.py --port 3000              # Run on port 3000
+python main.py --config my_world.toml   # Load custom world file
+python main.py --host 127.0.0.1         # Bind to localhost only
+```
+
+### Advanced: Run in Background
+```bash
+nohup python main.py > server.log 2>&1 &
+```
+
+---
+
+## 📂 Project Structure
 
 ```
 somerpg/
-├── .venv/                 # Virtual environment
-├── main.py               # Entry point
-├── server.py             # Telnet server
-├── engine.py             # Game logic
-├── models.py             # Data models
-├── config.py             # Config loader
-├── color.py              # Color utilities
-├── world.toml            # World definition
-└── README.md             # This file
+├── .venv/               # Virtual environment
+├── main.py              # Entry point
+├── server.py            # Async Telnet server & I/O
+├── engine.py            # Core game logic & mechanics
+├── models.py            # Data classes (Player, Location, etc.)
+├── config.py            # TOML configuration loader
+├── color.py             # ANSI color utilities
+├── world.toml           # Game world definition
+└── requirements.txt     # Project dependencies
 ```
 
-## Extending the Game
+## 🐛 Troubleshooting
 
-1. **Add Locations**: Add new `[[locations]]` blocks in `world.toml`
-2. **Add NPCs**: Create new `[[npcs]]` blocks and link them to locations
-3. **Add Encounters**: Define `[[encounters]]` and reference in locations
-4. **Add Quests**: Create `[[quests]]` with objectives and rewards
-5. **Add Items**: Define `[[items]]` for shops or treasures
+*   **"Address already in use"**: Another process is using port 5000. Try `python main.py --port 3001`.
+*   **"Connection refused"**: Ensure the server is running. If on a remote machine, check firewalls.
+*   **Game Freezes**: Connections may timeout after inactivity. Reconnect via telnet.
+*   **Import Errors**: Ensure the virtual environment is activated (`source .venv/bin/activate`).
 
-## Tips
-
-- Start players with some gold in `world.toml` (adjust Player initialization in models.py)
-- Use descriptive location descriptions to set atmosphere
-- Balance encounter difficulty with rewards
-- Create quest chains by having NPCs reference each other
-- Use dangers to encourage caution in wilderness areas
+## 💡 Tips
+*   **Start Safe:** The Tavern is safe. Rest there before venturing out.
+*   **Stock Up:** Buy potions from the merchant before long journeys.
+*   **Watch Health:** Don't ignore low health; hazards can be deadly.
+*   **Explore:** Use `investigate` in new areas to find hidden items.
 
 ## License
-
-Public domain - feel free to modify and use as you wish!
+Public Domain - Feel free to modify and use as you wish!

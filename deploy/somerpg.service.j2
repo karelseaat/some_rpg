@@ -1,0 +1,17 @@
+# deploy/somerpg.service.j2
+[Unit]
+Description=SomeRPG Server
+After=network.target
+
+[Service]
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_install_dir }}
+ExecStart={{ app_install_dir }}/.venv/bin/python main.py --port {{ game_port }} --config {{ config_file }}
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
