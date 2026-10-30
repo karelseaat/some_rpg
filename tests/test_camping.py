@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from models import World, Player, Location, GameSettings, Enemy
-from engine import GameEngine
+from GameEngineFacade import GameEngineFacade as GameEngine
 
 class TestWildernessCamping(unittest.TestCase):
     def setUp(self):

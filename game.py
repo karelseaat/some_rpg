@@ -3,7 +3,7 @@ Represents the game state for a single player session.
 """
 from typing import Optional
 from models import Player, World, Enemy
-from engine import GameEngine
+from GameEngineFacade import GameEngineFacade as GameEngine
 
 class Game:
     """

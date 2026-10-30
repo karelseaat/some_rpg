@@ -4,7 +4,7 @@ import asyncio
 import socket
 from typing import Optional, List
 from models import Player, World, Enemy
-from engine import GameEngine
+from GameEngineFacade import GameEngineFacade as GameEngine
 from game import Game
 from color import title, success, error, info, bold, dim, warning
 from commands import COMMANDS
